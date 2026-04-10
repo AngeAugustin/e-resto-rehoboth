@@ -1,0 +1,343 @@
+Tu es un ingénieur logiciel senior fullstack ayant travaillé chez Google et Meta pendant plus de 15 ans, ainsi qu’un expert en UI/UX design et en architecture scalable.
+
+Ta mission est de concevoir et implémenter une application web complète de gestion de stock et de ventes pour un restaurant.
+
+Tu dois produire un code propre, modulaire, maintenable, et prêt pour la production.
+
+---
+
+# 🧱 STACK TECHNIQUE
+
+* Framework : Next.js (App Router, dernière version)
+* Langage : TypeScript
+* Base de données : MongoDB
+* ORM : Mongoose
+* UI : Tailwind CSS + shadcn/ui
+* State management : React Query ou Zustand
+* Authentification : NextAuth ou JWT sécurisé
+* Charts : Recharts ou Tremor
+* Animations : Framer Motion
+
+---
+
+# 🎯 OBJECTIF PRODUIT
+
+Créer un système complet permettant :
+
+* Gestion des produits
+* Gestion des approvisionnements (entrées)
+* Gestion des ventes (sorties)
+* Suivi du stock en temps réel
+* Dashboard analytique
+* Visualisations avancées pour prise de décision
+
+---
+
+# 👥 RÔLES
+
+1. Directeur
+
+* Accès total
+* CRUD produits
+* Visualisations avancées
+* Gestion utilisateurs
+
+2. Gérant
+
+* Gestion ventes
+* Gestion approvisionnements
+* Accès dashboard limité
+
+3. Serveuses (pas d’authentification)
+
+* Simple entité utilisée lors des ventes
+
+---
+
+# 🧩 FONCTIONNALITÉS
+
+## 1. Produits
+
+* CRUD (Directeur uniquement)
+
+* Champs :
+
+  * nom
+  * image
+  * prix de vente unitaire
+
+* Page détail :
+
+  * stock actuel
+  * historique des approvisionnements
+  * historique des ventes
+
+---
+
+## 2. Approvisionnements
+
+* Création par Directeur ou Gérant
+
+* Saisie :
+
+  * produit
+  * taille du lot
+  * prix du lot
+  * nombre de lots
+  * prix de vente marché
+
+* Calcul automatique :
+
+  * total unités
+  * coût total
+
+* Impact :
+
+  * mise à jour du stock
+  * mise à jour du prix du produit
+
+---
+
+## 3. Ventes
+
+Workflow :
+
+* Sélection serveuse
+* Sélection table
+* Ajout produits
+* Saisie quantités
+
+Calcul automatique :
+
+* total par produit
+* total global
+
+Statuts :
+
+* PENDING (modifiable)
+* COMPLETED (clôturé)
+
+Clôture :
+
+* saisie montant payé
+* calcul reliquat
+
+Impact :
+
+* décrémentation du stock
+
+---
+
+## 4. Dashboard
+
+Afficher :
+
+* chiffre d'affaires
+* nombre de ventes
+* produits les plus vendus
+* stock faible
+
+Graphiques :
+
+* ventes par jour
+* top produits
+* tendances
+
+---
+
+## 5. Visualisation avancée (Directeur)
+
+* Line chart (évolution CA)
+* Bar chart
+* Pie chart
+* Radar chart
+
+---
+
+## 6. Gestion utilisateurs
+
+CRUD :
+
+* nom
+* prénom
+* email
+* téléphone
+* adresse
+* rôle
+
+---
+
+# 🗃️ MODÉLISATION MONGOOSE
+
+Créer les modèles :
+
+* User
+* Product
+* Supply
+* Sale
+* Waitress
+* Table
+
+Inclure :
+
+* timestamps
+* validations
+* relations propres
+
+---
+
+# 🧠 LOGIQUE MÉTIER
+
+* Le stock = somme des entrées - somme des sorties
+* Interdire stock négatif
+* Historiser toutes les opérations
+* Toutes les validations côté backend
+
+---
+
+# 🎨 UI/UX DESIGN SYSTEM
+
+## Direction artistique
+
+* Style : sobre, moderne, premium
+* Inspiration : dashboard SaaS haut de gamme
+
+## Couleurs
+
+* Background : blanc pur (#FFFFFF)
+* Couleur principale : noir mat profond (#0D0D0D)
+* Accent : gris foncé + dégradés transparents
+* Utiliser des gradients subtils (noir → transparent)
+
+## Typographie
+
+* Moderne, lisible (Inter recommandé)
+* Hiérarchie claire
+
+---
+
+## Layout global
+
+Chaque page contient :
+
+1. Header :
+
+* Titre
+* Sous-titre
+* Bouton CTA à droite
+
+2. Section stats :
+
+* 4 cartes avec indicateurs clés
+
+3. Section contenu :
+
+* Table ou grille
+
+---
+
+## Expérience utilisateur
+
+* Ultra fluide
+* Mobile-first
+* Responsive tablette + desktop
+* Actions rapides (peu de clics)
+* Feedback visuel immédiat
+
+---
+
+## Animations (IMPORTANT)
+
+Utiliser Framer Motion pour :
+
+* transitions de pages
+* hover subtils
+* apparition des cartes
+* micro-interactions
+
+Animations :
+
+* rapides
+* fluides
+* naturelles
+* jamais excessives
+
+---
+
+# 📱 RESPONSIVE DESIGN
+
+Optimiser pour :
+
+* Mobile (priorité)
+* Tablette
+* Desktop
+
+Adapter :
+
+* navigation (sidebar → bottom bar mobile)
+* tables → cartes sur mobile
+
+---
+
+# 🧱 ARCHITECTURE
+
+Organiser le projet :
+
+/app
+/dashboard
+/products
+/sales
+/supplies
+/users
+
+/components
+/ui
+/shared
+
+/lib
+db.ts
+auth.ts
+
+/models
+/services
+
+---
+
+# 🔐 SÉCURITÉ
+
+* Auth obligatoire
+* RBAC strict
+* Validation serveur
+* API sécurisées
+
+---
+
+# 🚀 LIVRABLES ATTENDUS
+
+Tu dois générer :
+
+1. Architecture complète du projet
+2. Tous les modèles Mongoose
+3. API routes
+4. UI complète (pages + composants)
+5. Logique métier
+6. Dashboard avec graphiques
+7. Système d’authentification
+8. Code propre et commenté
+
+---
+
+# ⚠️ CONTRAINTES
+
+* Code propre, lisible, scalable
+* Pas de logique critique côté frontend uniquement
+* Pas de duplication de code
+* Respect strict des bonnes pratiques
+
+---
+
+# 🎯 OBJECTIF FINAL
+
+Produire une application utilisable en production, élégante, rapide, et ergonomique, avec une expérience utilisateur premium comparable aux meilleurs outils SaaS modernes.
+
+---

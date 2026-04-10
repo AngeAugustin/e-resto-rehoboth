@@ -1,0 +1,23 @@
+Je veux travailler sur une solution de gestion de stocks de produit et de vente dans un restaurant.
+Dans le système nous aurons comme roles :  le Directeur, le gérant. 
+Nous allons enregistrer aussi les serveuses mais ca ne sera pas un rôle. C'est purement pour avoir la liste des serveuses.
+
+0 - Nous aurons une page des produit. Ici seul le directeur peut créer les produists en renseignant leur noms, leur image et le prix de vente unitaire réelle.
+Dans les détails du produit je verrai l'historique des approvisionnements du produit et le stock. 
+
+1 - Nous allons gérer les approvisionnements auprès des fournisseurs (les entrées). C'est le gérant ou le directeur qui peut le faire.
+Qaund on achète un produit c'est souvent par lot. Pour enregistrer, on sélectionne le produit, et on enregistre qu'un lot de tel nombre du produit est à tel prix, et on précise le nombre de lots pris. (Par exemple, on aura j'ai pris 4 lots du prix A dont un lot contient 6 unités du produit). On précisera le prix de vente unitaire sur le marché. C'est au prix de vente unitaire sur le marché qu'on vendra le produit.
+
+2 -  Nous allons gérer les ventes auprès des clients (les sorties). C'est le gérant ou le directeur qui peut le faire.
+Le workflow il est le suivant.  Nous aurons dans le système la liste des tables du restaurant. C'est la serveuse qui sert les tables. 
+Pour enregistrer une vente, on précise la serveuse qui est concerné par le service, on sélectionne la table qui veut etre servie. Ensuite on a à l'écran les différents produits disponibles et pour l'un ou les produits choisies on précise pour chacun le nombre d'unités à servir. Le prix total est calculé on fonction du prix de vente unitaire sur le marché de chaque produit et le système sort la somme totale à payer. ET on valide. Une fois validée, la facture passe en attente. Elle pourra etre modifiée. Pour la valider définitivement c'est à dire la cloturer, il faudra renseigner combien le client à donner et le système dit combien il est censé prendre comme reliquat. 
+
+3 - Nous allons faire un dashbaord pour les deux utilisateurs. 
+Concernant les ventes, les entrées en stcoks, les produits les mieux vendus et autres. 
+
+4 - Nous allosn faire une page de visualisations pour le Directeur uniquement qui pourra avoir plusieurs types de visualisations, de graphes, de tendances d'évolutions, de digramme circulaire, spider chart et autres. On va exposer les informations pertinentes. 
+
+5 - Nous aurons une page pour la gestion des utilisateurs. Un utilisateur à un nom prénom, adresse, email, role, téléphone.
+
+
+Le layout de chaque page sera : Titre + sous titre et à droite le bouton CTA. Ensuite 4 cartes stats. Ensuite La liste des éléments de cette page. Les pages de visualisations ne sont pas comprises. 
