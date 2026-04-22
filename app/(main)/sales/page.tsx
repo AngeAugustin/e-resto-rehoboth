@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ async function fetchSales(): Promise<ISale[]> {
 
 // ----------- Main Page -----------
 export default function SalesPage() {
+  const PAGE_SIZE = 10;
   const { data: sales, isLoading } = useQuery({
     queryKey: ["sales"],
     queryFn: fetchSales,
@@ -31,11 +33,18 @@ export default function SalesPage() {
   });
 
   const [saleToClose, setSaleToClose] = useState<ISale | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const totalRevenue = sales?.filter((s) => s.status === "COMPLETED").reduce((sum, s) => sum + s.totalAmount, 0) ?? 0;
   const totalSales = sales?.length ?? 0;
   const pendingSales = sales?.filter((s) => s.status === "PENDING").length ?? 0;
   const completedSales = sales?.filter((s) => s.status === "COMPLETED").length ?? 0;
+  const paginatedSales = (sales ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil((sales?.length ?? 0) / PAGE_SIZE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   return (
     <div>
@@ -101,7 +110,7 @@ export default function SalesPage() {
                   </thead>
                   <tbody>
                     <AnimatePresence>
-                      {sales?.map((sale) => {
+                      {paginatedSales.map((sale) => {
                         const waitress = sale.waitress as { firstName: string; lastName: string };
                         return (
                           <motion.tr
@@ -170,6 +179,14 @@ export default function SalesPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      <PaginationControls
+        className="mt-6"
+        currentPage={currentPage}
+        pageSize={PAGE_SIZE}
+        totalItems={sales?.length ?? 0}
+        onPageChange={setCurrentPage}
+      />
 
       <CloseSaleDialog sale={saleToClose} onClose={() => setSaleToClose(null)} />
     </div>

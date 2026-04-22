@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -15,10 +17,11 @@ import {
   Table2,
   BarChart3,
   LogOut,
-  ChefHat,
+  Settings2,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +32,7 @@ import {
 } from "@/components/ui/dialog";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["directeur", "gerant"] },
+  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ["directeur", "gerant"] },
   { href: "/products", label: "Produits", icon: Package, roles: ["directeur", "gerant"] },
   { href: "/supplies", label: "Approvisionnements", icon: TruckIcon, roles: ["directeur", "gerant"] },
   { href: "/sales", label: "Ventes", icon: ShoppingCart, roles: ["directeur", "gerant"] },
@@ -37,6 +40,7 @@ const navItems = [
   { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur"] },
   { href: "/analytics", label: "Analytiques", icon: BarChart3, roles: ["directeur"] },
   { href: "/users", label: "Utilisateurs", icon: Users, roles: ["directeur"] },
+  { href: "/settings", label: "Paramètres", icon: Settings2, roles: ["directeur", "gerant"] },
 ];
 
 export function Sidebar() {
@@ -46,19 +50,35 @@ export function Sidebar() {
   const role = session?.user?.role ?? "";
   const name = session?.user?.name ?? "";
   const [firstName, lastName] = name.split(" ");
+  const { data: branding } = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings");
+      if (!res.ok) return { logoUrl: DEFAULT_LOGO_URL, solutionName: DEFAULT_SOLUTION_NAME };
+      return (await res.json()) as { logoUrl?: string; solutionName?: string };
+    },
+    staleTime: 60 * 1000,
+  });
+  const logoSrc = branding?.logoUrl || DEFAULT_LOGO_URL;
+  const solutionName = branding?.solutionName || DEFAULT_SOLUTION_NAME;
 
   const visibleItems = navItems.filter((item) => item.roles.includes(role));
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-[#0D0D0D] text-white fixed left-0 top-0 bottom-0 z-40">
+    <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-primary text-primary-foreground fixed left-0 top-0 bottom-0 z-40">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-          <ChefHat className="w-4 h-4 text-[#0D0D0D]" />
-        </div>
+        <Image
+          src={logoSrc}
+          alt="Logo Rehoboth - Fleur de Dieu"
+          width={40}
+          height={40}
+          className="h-10 w-10 rounded-full object-contain bg-white"
+          priority
+        />
         <div>
-          <p className="font-semibold text-sm leading-tight">e-Restaurant</p>
-          <p className="text-[10px] text-white/40 leading-tight">Restaurant Manager</p>
+          <p className="font-semibold text-sm leading-tight">{solutionName}</p>
+          <p className="text-[10px] text-white/40 leading-tight">Bar Restaurant</p>
         </div>
       </div>
 
@@ -75,8 +95,8 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer",
                   isActive
-                    ? "bg-white text-[#0D0D0D]"
-                    : "text-white/60 hover:text-white hover:bg-white/10"
+                    ? "bg-white text-primary"
+                    : "text-primary-foreground/60 hover:text-primary-foreground hover:bg-white/10"
                 )}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -84,7 +104,7 @@ export function Sidebar() {
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-indicator"
-                    className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0D0D0D]"
+                    className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
                   />
                 )}
               </motion.div>

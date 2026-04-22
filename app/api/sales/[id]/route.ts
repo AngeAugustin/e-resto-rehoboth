@@ -103,17 +103,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await sale.save();
 
     const saleId = sale._id.toString();
-    for (const item of sale.items) {
-      const productId = item.product.toString();
-      const previousStock = await getProductStock(productId, { excludeSaleId: saleId });
-      const newStock = previousStock - item.quantity;
-      const productDoc = await Product.findById(productId).select("name").lean();
-      const productName = productDoc?.name ?? "Produit";
-      void notifyLowStockAfterSaleIfNeeded({
-        productName,
-        stockAfterSale: newStock,
-      });
-    }
+    await Promise.all(
+      sale.items.map(async (item) => {
+        const productId = item.product.toString();
+        const previousStock = await getProductStock(productId, { excludeSaleId: saleId });
+        const newStock = previousStock - item.quantity;
+        const productDoc = await Product.findById(productId).select("name").lean();
+        const productName = productDoc?.name ?? "Produit";
+        await notifyLowStockAfterSaleIfNeeded({
+          productName,
+          stockAfterSale: newStock,
+        });
+      })
+    );
   } else {
     // Update pending sale (waitress, tables, items)
     const { waitressId, items } = body;

@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Plus, TruckIcon, Package, DollarSign, Calendar, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -459,6 +460,7 @@ function SupplyDialog({
 }
 
 export default function SuppliesPage() {
+  const PAGE_SIZE = 10;
   const { data: session } = useSession();
   const isDirector = session?.user?.role === "directeur";
   const qc = useQueryClient();
@@ -467,6 +469,7 @@ export default function SuppliesPage() {
     queryFn: fetchSupplies,
   });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [editSupply, setEditSupply] = useState<ISupply | null>(null);
   const [supplyToDelete, setSupplyToDelete] = useState<ISupply | null>(null);
 
@@ -506,6 +509,12 @@ export default function SuppliesPage() {
   const totalUnits = supplies?.reduce((s, a) => s + a.totalUnits, 0) ?? 0;
   const totalCost = supplies?.reduce((s, a) => s + a.totalCost, 0) ?? 0;
   const lastSupply = supplies?.[0];
+  const paginatedSupplies = (supplies ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil((supplies?.length ?? 0) / PAGE_SIZE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   return (
     <div>
@@ -580,7 +589,7 @@ export default function SuppliesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {supplies?.map((supply) => {
+                    {paginatedSupplies.map((supply) => {
                       const product = supply.product as { name: string };
                       const user = supply.createdBy as { firstName: string; lastName: string };
                       return (
@@ -639,6 +648,14 @@ export default function SuppliesPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      <PaginationControls
+        className="mt-6"
+        currentPage={currentPage}
+        pageSize={PAGE_SIZE}
+        totalItems={supplies?.length ?? 0}
+        onPageChange={setCurrentPage}
+      />
 
       <SupplyDialog open={dialogOpen} onClose={closeDialog} supply={editSupply} />
 

@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Plus, Pencil, Trash2, Table2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -149,6 +150,7 @@ function TableDialog({
 }
 
 export default function TablesPage() {
+  const PAGE_SIZE = 12;
   const { data: session, status } = useSession();
   const qc = useQueryClient();
 
@@ -159,6 +161,7 @@ export default function TablesPage() {
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [edit, setEdit] = useState<IRestaurantTable | undefined>();
   const [tablePendingDelete, setTablePendingDelete] = useState<IRestaurantTable | null>(null);
 
@@ -177,11 +180,6 @@ export default function TablesPage() {
     },
   });
 
-  if (status === "loading") return <Skeleton className="h-96" />;
-  if (session?.user?.role !== "directeur") {
-    return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé au directeur.</p>;
-  }
-
   const openCreate = () => {
     setEdit(undefined);
     setDialogOpen(true);
@@ -193,6 +191,18 @@ export default function TablesPage() {
 
   const count = tables?.length ?? 0;
   const occupied = tables?.filter((t) => t.occupiedByPendingSaleId).length ?? 0;
+  const sortedTables = (tables ?? []).slice().sort((a, b) => a.number - b.number);
+  const paginatedTables = sortedTables.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(sortedTables.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  if (status === "loading") return <Skeleton className="h-96" />;
+  if (session?.user?.role !== "directeur") {
+    return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé au directeur.</p>;
+  }
 
   return (
     <div>
@@ -245,61 +255,70 @@ export default function TablesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {tables
-              ?.slice()
-              .sort((a, b) => a.number - b.number)
-              .map((t, i) => (
+            {paginatedTables.map((t, i) => (
                 <motion.article
                   key={t._id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 1, 0.36, 1] }}
-                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white p-[14px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-[#D4D4D4] hover:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.1)]"
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#E7EAEE] bg-gradient-to-b from-white to-[#FBFCFD] p-4 shadow-[0_6px_26px_-22px_rgba(0,0,0,0.35)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-[1px] hover:border-[#D9DEE5] hover:shadow-[0_14px_32px_-18px_rgba(0,0,0,0.38)]"
                 >
-                  <div className="absolute left-0 top-0 h-full w-[3px] bg-[#0D0D0D] opacity-[0.08]" aria-hidden />
+                  <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#F8FAFC] to-transparent" aria-hidden />
 
-                  <div className="flex items-start justify-between gap-3 pl-0.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-mono text-[10px] font-medium tabular-nums tracking-wide text-[#B0B0B0]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex items-center gap-2">
+                      <span className="inline-flex h-6 items-center rounded-full bg-[#111827] px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
                         Table {t.number}
-                      </p>
-                      <h3 className="mt-0.5 truncate text-[13px] font-semibold leading-snug tracking-tight text-[#0D0D0D]">
-                        {t.name ?? `Table ${t.number}`}
-                      </h3>
-                      <p className="mt-2 text-[11px] text-[#9CA3AF]">Ajoutée le {formatDate(t.createdAt)}</p>
-                    </div>
-                    <div
-                      className="flex min-w-[48px] flex-col items-center justify-center rounded-xl bg-[#F5F5F5] px-2 py-1.5"
-                      aria-hidden
-                    >
-                      <span className="text-[14px] font-semibold tabular-nums leading-none text-[#0D0D0D]">
-                        {t.capacity ?? "—"}
                       </span>
-                      <span className="mt-1 text-[8px] font-semibold uppercase tracking-[0.15em] text-[#A3A3A3]">
-                        pl.
-                      </span>
+                      {t.occupiedByPendingSaleId ? (
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-transparent bg-[#EEF2FF] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#4338CA]"
+                        >
+                          Occupée
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-transparent bg-[#ECFDF3] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#047857]"
+                        >
+                          Libre
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
-                  {t.occupiedByPendingSaleId ? (
-                    <Badge
-                      variant="outline"
-                      className="mt-3 w-fit border-transparent bg-[#F4F4F5] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#52525B]"
-                    >
-                      Commande en cours
-                    </Badge>
-                  ) : (
-                    <p className="mt-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#D4D4D8]">
-                      Libre
-                    </p>
-                  )}
+                  <div className="mt-3.5">
+                    <h3 className="truncate text-[15px] font-semibold tracking-tight text-[#111827]">
+                      {t.name ?? `Table ${t.number}`}
+                    </h3>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <Badge variant="secondary" className="rounded-full bg-[#F3F4F6] text-[#374151]">
+                        {t.capacity ?? "—"} place{(t.capacity ?? 0) > 1 ? "s" : ""}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-[#E5E7EB] bg-white text-[#6B7280]"
+                      >
+                        Ajoutée le {formatDate(t.createdAt)}
+                      </Badge>
+                      {t.occupiedByPendingSaleId && (
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-[#E5E7EB] bg-white text-[#6B7280]"
+                        >
+                          Commande en cours
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
 
-                  <div className="mt-3.5 flex justify-end gap-0.5 border-t border-[#F0F0F0] pt-2.5">
+                  <div className="mt-4 flex justify-end gap-1.5 border-t border-[#EEF0F3] pt-3">
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="h-8 px-2.5 text-[12px] font-medium text-[#6B7280] hover:bg-[#F5F5F5] hover:text-[#0D0D0D]"
+                      className="h-8 rounded-full border-[#E5E7EB] bg-white px-3 text-[12px] font-medium text-[#4B5563] hover:bg-[#F9FAFB] hover:text-[#111827]"
                       onClick={() => openEdit(t)}
                     >
                       <Pencil className="mr-1.5 h-3 w-3" />
@@ -307,9 +326,9 @@ export default function TablesPage() {
                     </Button>
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="h-8 px-2.5 text-[12px] font-medium text-[#9CA3AF] hover:bg-red-50 hover:text-red-600"
+                      className="h-8 rounded-full border-[#F2D7D7] bg-white px-3 text-[12px] font-medium text-[#9CA3AF] hover:bg-red-50 hover:text-red-600"
                       onClick={() => setTablePendingDelete(t)}
                     >
                       <Trash2 className="mr-1.5 h-3 w-3" />
@@ -317,10 +336,18 @@ export default function TablesPage() {
                     </Button>
                   </div>
                 </motion.article>
-              ))}
+            ))}
           </div>
         )}
       </motion.section>
+
+      <PaginationControls
+        className="mt-6"
+        currentPage={currentPage}
+        pageSize={PAGE_SIZE}
+        totalItems={sortedTables.length}
+        onPageChange={setCurrentPage}
+      />
 
       <TableDialog open={dialogOpen} onClose={() => setDialogOpen(false)} table={edit} />
 

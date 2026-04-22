@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useQuery } from "@tanstack/react-query";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ChefHat, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,6 +20,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { data: publicSettings } = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/public-settings");
+      if (!res.ok) return { logoUrl: DEFAULT_LOGO_URL, solutionName: DEFAULT_SOLUTION_NAME };
+      return (await res.json()) as { logoUrl?: string; solutionName?: string };
+    },
+    staleTime: 60 * 1000,
+  });
+  const logoSrc = publicSettings?.logoUrl || DEFAULT_LOGO_URL;
+  const solutionName = publicSettings?.solutionName || DEFAULT_SOLUTION_NAME;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,11 +71,18 @@ export default function LoginPage() {
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.3 }}
-            className="w-12 h-12 rounded-2xl bg-[#0D0D0D] flex items-center justify-center mb-4"
+            className="mb-4"
           >
-            <ChefHat className="w-6 h-6 text-white" />
+            <Image
+              src={logoSrc}
+              alt="Logo Rehoboth - Fleur de Dieu"
+              width={140}
+              height={140}
+              priority
+              className="h-28 w-28 rounded-full object-contain"
+            />
           </motion.div>
-          <h1 className="text-2xl font-bold text-[#0D0D0D]">e-Restaurant</h1>
+          <h1 className="text-2xl font-bold text-primary">{solutionName}</h1>
           <p className="text-sm text-[#6B7280] mt-1">Connectez-vous à votre espace</p>
         </div>
 
@@ -118,7 +139,7 @@ export default function LoginPage() {
             <div className="flex justify-center pt-1">
               <Link
                 href="/mot-de-passe-oublie"
-                className="text-sm text-[#6B7280] hover:text-[#0D0D0D] transition-colors"
+                className="text-sm text-[#6B7280] hover:text-primary transition-colors"
               >
                 Mot de passe oublié ?
               </Link>

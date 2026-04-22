@@ -15,6 +15,7 @@ export interface IUser {
 export interface IProduct {
   _id: string;
   name: string;
+  category?: string;
   image?: string;
   sellingPrice: number;
   stock: number;

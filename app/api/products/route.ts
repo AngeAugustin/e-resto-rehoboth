@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import Product from "@/models/Product";
+import { isValidProductCategory } from "@/lib/product-categories";
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -19,10 +20,14 @@ export async function POST(req: NextRequest) {
   await connectDB();
 
   const body = await req.json();
-  const { name, image, sellingPrice } = body;
+  const { name, image, sellingPrice, category } = body;
 
-  if (!name || sellingPrice === undefined) {
-    return NextResponse.json({ error: "Nom et prix requis" }, { status: 400 });
+  if (!name || sellingPrice === undefined || !category) {
+    return NextResponse.json({ error: "Nom, catégorie et prix requis" }, { status: 400 });
+  }
+
+  if (!isValidProductCategory(category)) {
+    return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
   }
 
   const existing = await Product.findOne({ name: name.trim() });
@@ -32,6 +37,7 @@ export async function POST(req: NextRequest) {
 
   const product = await Product.create({
     name: name.trim(),
+    category,
     image: image || "",
     sellingPrice: Number(sellingPrice),
   });

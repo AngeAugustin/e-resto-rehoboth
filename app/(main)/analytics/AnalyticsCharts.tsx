@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { formatCurrency } from "@/lib/utils";
 import type { AnalyticsData } from "@/types";
 
+const PRIMARY_COLOR = "hsl(var(--primary))";
+
 const ChartTooltip = ({
   active,
   payload,
@@ -87,10 +89,10 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
                   type="monotone"
                   dataKey="revenue"
                   name="Revenus"
-                  stroke="#0D0D0D"
+                  stroke={PRIMARY_COLOR}
                   strokeWidth={2.5}
                   dot={false}
-                  activeDot={{ r: 5, fill: "#0D0D0D" }}
+                  activeDot={{ r: 5, fill: PRIMARY_COLOR }}
                 />
                 <Line
                   yAxisId="sales"
@@ -146,7 +148,7 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
                   contentStyle={{ borderRadius: "8px", border: "1px solid #E5E5E5", fontSize: "12px" }}
                 />
                 <Legend />
-                <Bar dataKey="revenue" fill="#0D0D0D" radius={[4, 4, 0, 0]} name="Revenus" />
+                <Bar dataKey="revenue" fill={PRIMARY_COLOR} radius={[4, 4, 0, 0]} name="Revenus" />
                 <Bar dataKey="margin" fill="#15803d" radius={[4, 4, 0, 0]} name="Marge" />
               </BarChart>
             </ResponsiveContainer>

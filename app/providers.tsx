@@ -2,7 +2,8 @@
 
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { applyPrimaryColorToDocument } from "@/lib/app-settings";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -17,6 +18,27 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const res = await fetch("/api/settings");
+        if (!res.ok) return;
+        const data = (await res.json()) as { primaryColor?: string };
+        if (!isMounted || !data.primaryColor) return;
+        applyPrimaryColorToDocument(data.primaryColor);
+      } catch {
+        // Paramètres indisponibles (ex: écran login) : on conserve les couleurs par défaut.
+      }
+    };
+
+    loadSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <SessionProvider>

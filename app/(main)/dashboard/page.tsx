@@ -39,7 +39,7 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader
-        title="Dashboard"
+        title="Tableau de bord"
         subtitle={`Bienvenue — ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}`}
       />
 

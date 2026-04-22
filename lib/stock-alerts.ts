@@ -1,5 +1,7 @@
 import { Resend } from "resend";
 import User from "@/models/User";
+import AppSetting from "@/models/AppSetting";
+import { GLOBAL_SETTINGS_KEY, normalizeEmailList } from "@/lib/app-settings";
 
 const STOCK_ALERT_LEVEL = 5;
 
@@ -14,6 +16,16 @@ async function getDirectorEmails(): Promise<string[]> {
   return directors.map((u) => u.email).filter(Boolean);
 }
 
+async function getConfiguredLowStockEmails(): Promise<string[]> {
+  const settings = await AppSetting.findOne({ key: GLOBAL_SETTINGS_KEY })
+    .select("lowStockAlertEmails")
+    .lean();
+
+  const configuredEmails = normalizeEmailList(settings?.lowStockAlertEmails);
+  if (configuredEmails.length > 0) return configuredEmails;
+  return getDirectorEmails();
+}
+
 async function sendResendLowStock(productName: string, stock: number): Promise<void> {
   const resend = resendClient();
   const fromEmail = process.env.RESEND_FROM_EMAIL;
@@ -24,7 +36,7 @@ async function sendResendLowStock(productName: string, stock: number): Promise<v
 
   const fromName = process.env.SMTP_FROM_NAME ?? "e-Restaurant";
   const from = `${fromName} <${fromEmail}>`;
-  const to = await getDirectorEmails();
+  const to = await getConfiguredLowStockEmails();
   if (to.length === 0) {
     console.warn("[stock-alerts] Aucun utilisateur avec le rôle directeur pour l’envoi email");
     return;
@@ -52,12 +64,50 @@ function escapeHtml(s: string) {
 }
 
 /**
- * WhatsApp via CallMeBot (https://www.callmebot.com/) : le numéro cible doit lier WhatsApp et fournir CALLMEBOT_API_KEY.
- * Alternative : Twilio (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM).
+ * WhatsApp — par ordre de priorité si configuré :
+ * 1. Meta Cloud API (WHATSAPP_CLOUD_ACCESS_TOKEN, WHATSAPP_CLOUD_PHONE_NUMBER_ID)
+ * 2. Twilio (TWILIO_*)
+ * 3. CallMeBot (CALLMEBOT_API_KEY) — https://www.callmebot.com/
+ *
+ * Destinataire : WHATSAPP_ALERT_PHONE (indicatif pays + numéro, chiffres uniquement après nettoyage).
  */
 async function sendWhatsAppLowStock(productName: string, stock: number): Promise<void> {
   const phone = process.env.WHATSAPP_ALERT_PHONE?.replace(/\D/g, "") ?? "";
   const text = `e-Restaurant — Stock faible (≤5)\n${productName} : ${stock} unité(s) restantes après vente.`;
+
+  const cloudToken = process.env.WHATSAPP_CLOUD_ACCESS_TOKEN?.trim();
+  const cloudPhoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
+  const cloudVersion = (process.env.WHATSAPP_CLOUD_API_VERSION ?? "v21.0").trim();
+
+  if (cloudToken && cloudPhoneNumberId && phone) {
+    const url = `https://graph.facebook.com/${cloudVersion}/${cloudPhoneNumberId}/messages`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cloudToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: phone,
+        type: "text",
+        text: { preview_url: false, body: text },
+      }),
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      console.error("[stock-alerts] WhatsApp Cloud API HTTP", res.status, raw);
+    } else {
+      try {
+        const j = JSON.parse(raw) as { messages?: Array<{ id?: string }> };
+        const wamid = j.messages?.[0]?.id;
+        if (wamid) console.log("[stock-alerts] WhatsApp Cloud API message_id:", wamid);
+      } catch {
+        /* ignore */
+      }
+    }
+    return;
+  }
 
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioToken = process.env.TWILIO_AUTH_TOKEN;
@@ -101,7 +151,7 @@ async function sendWhatsAppLowStock(productName: string, stock: number): Promise
   }
 
   console.warn(
-    "[stock-alerts] WhatsApp non configuré : définissez CALLMEBOT_API_KEY + WHATSAPP_ALERT_PHONE, ou Twilio (TWILIO_*)."
+    "[stock-alerts] WhatsApp non configuré : Cloud API (WHATSAPP_CLOUD_ACCESS_TOKEN + WHATSAPP_CLOUD_PHONE_NUMBER_ID + WHATSAPP_ALERT_PHONE), ou Twilio (TWILIO_*), ou CallMeBot (CALLMEBOT_API_KEY)."
   );
 }
 

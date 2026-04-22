@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
 import Sale from "@/models/Sale";
+import { isValidProductCategory } from "@/lib/product-categories";
 import "@/models/User";
 import "@/models/Waitress";
 import "@/models/RestaurantTable";
@@ -58,12 +59,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   await connectDB();
   const { id } = await params;
   const body = await req.json();
-  const { name, image, sellingPrice } = body;
+  const { name, image, sellingPrice, category } = body;
+
+  if (category !== undefined && !isValidProductCategory(category)) {
+    return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
+  }
 
   const product = await Product.findByIdAndUpdate(
     id,
     {
       ...(name && { name: name.trim() }),
+      ...(category !== undefined && { category }),
       ...(image !== undefined && { image }),
       ...(sellingPrice !== undefined && { sellingPrice: Number(sellingPrice) }),
     },

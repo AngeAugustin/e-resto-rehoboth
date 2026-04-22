@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Plus, Pencil, Trash2, UserRound } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,6 +122,7 @@ function WaitressDialog({
 }
 
 export default function WaitressesPage() {
+  const PAGE_SIZE = 12;
   const { data: session, status } = useSession();
   const qc = useQueryClient();
 
@@ -131,6 +133,7 @@ export default function WaitressesPage() {
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [edit, setEdit] = useState<IWaitress | undefined>();
   const [waitressPendingDelete, setWaitressPendingDelete] = useState<IWaitress | null>(null);
 
@@ -149,11 +152,6 @@ export default function WaitressesPage() {
     },
   });
 
-  if (status === "loading") return <Skeleton className="h-96" />;
-  if (session?.user?.role !== "directeur") {
-    return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé au directeur.</p>;
-  }
-
   const openCreate = () => {
     setEdit(undefined);
     setDialogOpen(true);
@@ -164,6 +162,17 @@ export default function WaitressesPage() {
   };
 
   const count = waitresses?.length ?? 0;
+  const paginatedWaitresses = (waitresses ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil((waitresses?.length ?? 0) / PAGE_SIZE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  if (status === "loading") return <Skeleton className="h-96" />;
+  if (session?.user?.role !== "directeur") {
+    return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé au directeur.</p>;
+  }
 
   return (
     <div>
@@ -210,7 +219,7 @@ export default function WaitressesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {waitresses?.map((w, i) => (
+            {paginatedWaitresses.map((w, i) => (
               <motion.article
                 key={w._id}
                 initial={{ opacity: 0, y: 8 }}
@@ -267,6 +276,14 @@ export default function WaitressesPage() {
           </div>
         )}
       </motion.section>
+
+      <PaginationControls
+        className="mt-6"
+        currentPage={currentPage}
+        pageSize={PAGE_SIZE}
+        totalItems={waitresses?.length ?? 0}
+        onPageChange={setCurrentPage}
+      />
 
       <WaitressDialog open={dialogOpen} onClose={() => setDialogOpen(false)} waitress={edit} />
 

@@ -5,9 +5,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, Users, Shield, UserCheck, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Users, Shield, UserCheck, Pencil, Trash2, Eye, EyeOff, Phone, CalendarClock } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -221,6 +222,7 @@ function UserDialog({
 }
 
 export default function UsersPage() {
+  const PAGE_SIZE = 10;
   const { data: session, status } = useSession();
   const qc = useQueryClient();
 
@@ -231,6 +233,7 @@ export default function UsersPage() {
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [editUser, setEditUser] = useState<IUser | undefined>();
   const [userToDelete, setUserToDelete] = useState<IUser | null>(null);
 
@@ -248,17 +251,23 @@ export default function UsersPage() {
     },
   });
 
+  const totalUsers = users?.length ?? 0;
+  const directors = users?.filter((u) => u.role === "directeur").length ?? 0;
+  const managers = users?.filter((u) => u.role === "gerant").length ?? 0;
+  const paginatedUsers = (users ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil((users?.length ?? 0) / PAGE_SIZE));
+
+  const openCreate = () => { setEditUser(undefined); setDialogOpen(true); };
+  const openEdit = (u: IUser) => { setEditUser(u); setDialogOpen(true); };
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
   if (status === "loading") return <Skeleton className="h-96" />;
   if (session?.user?.role !== "directeur") {
     return <p className="text-center py-20 text-[#9CA3AF]">Accès réservé au Directeur</p>;
   }
-
-  const totalUsers = users?.length ?? 0;
-  const directors = users?.filter((u) => u.role === "directeur").length ?? 0;
-  const managers = users?.filter((u) => u.role === "gerant").length ?? 0;
-
-  const openCreate = () => { setEditUser(undefined); setDialogOpen(true); };
-  const openEdit = (u: IUser) => { setEditUser(u); setDialogOpen(true); };
 
   return (
     <div>
@@ -304,49 +313,62 @@ export default function UsersPage() {
             ) : users?.length === 0 ? (
               <p className="text-center py-12 text-[#9CA3AF]">Aucun utilisateur</p>
             ) : (
-              <div className="space-y-2">
-                {users?.map((user) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {paginatedUsers.map((user) => (
                   <div
                     key={user._id}
-                    className="flex items-center justify-between p-4 rounded-xl border border-[#F5F5F5] hover:border-[#E5E5E5] hover:bg-[#FAFAFA] transition-all group"
+                    className="group rounded-2xl border border-[#E9EAEC] bg-white p-4 shadow-[0_4px_20px_-18px_rgba(0,0,0,0.35)] transition-all duration-200 hover:border-[#DDE1E6] hover:shadow-[0_12px_34px_-18px_rgba(0,0,0,0.45)]"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#0D0D0D] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                        {getInitials(user.firstName, user.lastName)}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex items-start gap-3">
+                        <div className="relative mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+                          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#111827] to-[#374151]" />
+                          <span className="relative text-sm font-semibold text-white">
+                            {getInitials(user.firstName, user.lastName)}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <p className="truncate text-sm font-semibold tracking-tight text-[#111827]">
+                              {user.firstName} {user.lastName}
+                            </p>
+                            <Badge
+                              variant={user.role === "directeur" ? "default" : "secondary"}
+                              className="rounded-full"
+                            >
+                              {user.role === "directeur" ? "Directeur" : "Gérant"}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 truncate text-sm text-[#6B7280]">{user.email}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {user.phone && (
+                              <Badge variant="outline" className="rounded-full border-[#E5E7EB] text-[#4B5563]">
+                                <Phone className="mr-1 h-3 w-3" />
+                                {user.phone}
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="rounded-full border-[#E5E7EB] text-[#6B7280]">
+                              <CalendarClock className="mr-1 h-3 w-3" />
+                              Depuis {formatDate(user.createdAt)}
+                            </Badge>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-[#0D0D0D]">
-                          {user.firstName} {user.lastName}
-                        </p>
-                        <p className="text-sm text-[#6B7280]">{user.email}</p>
-                        {user.phone && (
-                          <p className="text-xs text-[#9CA3AF]">{user.phone}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="hidden sm:block text-right">
-                        <Badge variant={user.role === "directeur" ? "default" : "secondary"}>
-                          {user.role === "directeur" ? "Directeur" : "Gérant"}
-                        </Badge>
-                        <p className="text-xs text-[#9CA3AF] mt-1">
-                          Depuis {formatDate(user.createdAt)}
-                        </p>
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1.5">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 rounded-full border-[#E5E7EB] bg-white hover:bg-[#F8FAFC]"
                           onClick={() => openEdit(user)}
+                          aria-label={`Modifier ${user.firstName} ${user.lastName}`}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
                         {user._id !== session?.user?.id && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
-                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            className="h-8 w-8 rounded-full border-[#F2D7D7] bg-white text-red-500 hover:bg-red-50 hover:text-red-600"
                             onClick={() => setUserToDelete(user)}
                             aria-label={`Supprimer ${user.firstName} ${user.lastName}`}
                           >
@@ -362,6 +384,14 @@ export default function UsersPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      <PaginationControls
+        className="mt-6"
+        currentPage={currentPage}
+        pageSize={PAGE_SIZE}
+        totalItems={users?.length ?? 0}
+        onPageChange={setCurrentPage}
+      />
 
       <UserDialog open={dialogOpen} onClose={() => setDialogOpen(false)} user={editUser} />
 

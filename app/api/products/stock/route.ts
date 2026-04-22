@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
 import Sale from "@/models/Sale";
+import { DEFAULT_PRODUCT_CATEGORY } from "@/lib/product-categories";
 
 // Returns all products with their current stock level (single round-trip style: 1 find + 2 aggregates)
 export async function GET() {
@@ -60,6 +61,7 @@ export async function GET() {
     const purchaseUnitCost = hasLatest ? latest.totalCost / latest.totalUnits : 0;
     return {
       ...p,
+      category: p.category ?? DEFAULT_PRODUCT_CATEGORY,
       stock: totalSupplied - totalSold,
       marketSellingPrice,
       purchaseUnitCost,
