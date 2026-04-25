@@ -135,7 +135,11 @@ if (existingModel) {
     | (mongoose.SchemaType & { options?: { enum?: string[] } })
     | undefined;
   const enumValues = statusPath?.options?.enum;
-  if (Array.isArray(enumValues) && !enumValues.includes("CANCELLED")) {
+  if (
+    statusPath &&
+    Array.isArray(enumValues) &&
+    !enumValues.includes("CANCELLED")
+  ) {
     statusPath.options = { ...statusPath.options, enum: [...enumValues, "CANCELLED"] };
   }
 }
