@@ -18,6 +18,8 @@ export interface ISaleDocument extends Document {
   totalAmount: number;
   amountPaid?: number;
   change?: number;
+  /** À la clôture : confirmé par l’opérateur si une monnaie était à rendre */
+  changeReturnedAck?: boolean;
   paymentMethod?: "CASH" | "MOBILE_MONEY";
   status: "PENDING" | "COMPLETED" | "CANCELLED";
   createdBy: Types.ObjectId;
@@ -89,6 +91,10 @@ const SaleSchema = new Schema<ISaleDocument>(
     change: {
       type: Number,
       default: 0,
+    },
+    changeReturnedAck: {
+      type: Boolean,
+      required: false,
     },
     paymentMethod: {
       type: String,

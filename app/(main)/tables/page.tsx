@@ -31,14 +31,22 @@ async function fetchTables(): Promise<IRestaurantTable[]> {
   return res.json();
 }
 
+function nextTableNumber(tables: IRestaurantTable[]): number {
+  if (tables.length === 0) return 1;
+  return Math.max(...tables.map((t) => t.number)) + 1;
+}
+
 function TableDialog({
   open,
   onClose,
   table,
+  createSeed,
 }: {
   open: boolean;
   onClose: () => void;
   table?: IRestaurantTable;
+  /** Prochain numéro figé au moment d’ouvrir « Nouvelle table » (évite une réinit si les données se rechargent). */
+  createSeed: { n: number } | null;
 }) {
   const qc = useQueryClient();
   const [number, setNumber] = useState("");
@@ -47,16 +55,17 @@ function TableDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
     if (table) {
       setNumber(String(table.number));
       setName(table.name ?? "");
       setCapacity(table.capacity != null ? String(table.capacity) : "");
-    } else {
-      setNumber("");
-      setName("");
+    } else if (createSeed) {
+      setNumber(String(createSeed.n));
+      setName(`TABLE-${createSeed.n}`);
       setCapacity("");
     }
-  }, [table, open]);
+  }, [table, open, createSeed]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +120,14 @@ function TableDialog({
                 type="number"
                 min={1}
                 value={number}
-                onChange={(e) => setNumber(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setNumber(v);
+                  if (!table) {
+                    const n = parseInt(v, 10);
+                    if (!Number.isNaN(n) && n >= 1) setName(`TABLE-${n}`);
+                  }
+                }}
                 required
               />
             </div>
@@ -131,7 +147,7 @@ function TableDialog({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex. Terrasse 1"
+              placeholder={table ? "Ex. Terrasse 1" : "TABLE-1"}
               required
             />
           </div>
@@ -161,10 +177,16 @@ export default function TablesPage() {
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [createSeed, setCreateSeed] = useState<{ n: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [edit, setEdit] = useState<IRestaurantTable | undefined>();
   const [tablePendingDelete, setTablePendingDelete] = useState<IRestaurantTable | null>(null);
+
+  const closeTableDialog = () => {
+    setDialogOpen(false);
+    setCreateSeed(null);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -183,9 +205,11 @@ export default function TablesPage() {
 
   const openCreate = () => {
     setEdit(undefined);
+    setCreateSeed({ n: nextTableNumber(tables ?? []) });
     setDialogOpen(true);
   };
   const openEdit = (t: IRestaurantTable) => {
+    setCreateSeed(null);
     setEdit(t);
     setDialogOpen(true);
   };
@@ -363,7 +387,12 @@ export default function TablesPage() {
         onPageChange={setCurrentPage}
       />
 
-      <TableDialog open={dialogOpen} onClose={() => setDialogOpen(false)} table={edit} />
+      <TableDialog
+        open={dialogOpen}
+        onClose={closeTableDialog}
+        table={edit}
+        createSeed={createSeed}
+      />
 
       <Dialog
         open={!!tablePendingDelete}

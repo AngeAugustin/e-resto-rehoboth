@@ -64,6 +64,8 @@ export interface ISale {
   totalAmount: number;
   amountPaid?: number;
   change?: number;
+  /** Déclaration à la clôture : monnaie remise au client (si monnaie à rendre) */
+  changeReturnedAck?: boolean;
   /** Présent pour les ventes clôturées après ajout du champ (anciennes ventes peuvent ne pas l’avoir) */
   paymentMethod?: SalePaymentMethod;
   status: SaleStatus;

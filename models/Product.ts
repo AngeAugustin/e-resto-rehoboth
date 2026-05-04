@@ -5,6 +5,8 @@ export interface IProductDocument extends Document {
   name: string;
   category: string;
   image?: string;
+  /** Si false, le produit n’apparaît pas dans les nouvelles ventes. */
+  isActive: boolean;
   /** Prix catalogue SOBEBRA (référence, toujours inférieur au prix marché) */
   sellingPrice: number;
   /** Prix de vente unitaire marché par défaut (prérempli à l’appro ; modifiable) */
@@ -41,6 +43,10 @@ const ProductSchema = new Schema<IProductDocument>(
       type: Number,
       min: [0, "Le prix marché ne peut pas être négatif"],
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
@@ -64,6 +70,14 @@ if (existingModel) {
       defaultMarketSellingPrice: {
         type: Number,
         min: [0, "Le prix marché ne peut pas être négatif"],
+      },
+    });
+  }
+  if (!existingModel.schema.path("isActive")) {
+    existingModel.schema.add({
+      isActive: {
+        type: Boolean,
+        default: true,
       },
     });
   }

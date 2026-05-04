@@ -30,7 +30,12 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { lotSizeSelectOptions, isValidLotSizeChoice } from "@/lib/supply-lot-sizes";
+import {
+  SUPPLY_LOT_SIZES,
+  SUPPLY_LOT_SIZE_SELECT_OTHER,
+  isStandardSupplyLotSize,
+  isValidLotSizeChoice,
+} from "@/lib/supply-lot-sizes";
 import type { ISupply } from "@/types";
 
 interface ProductOption {
@@ -53,9 +58,15 @@ async function fetchProducts(): Promise<ProductOption[]> {
   return res.json();
 }
 
+function sortProductsByName<T extends { name: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
+}
+
 interface SupplyForm {
   productId: string;
   lotSize: string;
+  /** « preset » : 6 / 12 / 24 ; « custom » : saisie libre (entier obligatoire) */
+  lotSizeMode: "preset" | "custom";
   lotPrice: string;
   numberOfLots: string;
   marketSellingPrice: string;
@@ -66,6 +77,7 @@ type SupplyDraftLine = SupplyForm & { id: string };
 const emptyForm = (): SupplyForm => ({
   productId: "",
   lotSize: "",
+  lotSizeMode: "preset",
   lotPrice: "",
   numberOfLots: "",
   marketSellingPrice: "",
@@ -181,6 +193,7 @@ function SupplyDialog({
       setForm({
         productId: productIdFromSupply(supply),
         lotSize: String(supply.lotSize),
+        lotSizeMode: isStandardSupplyLotSize(supply.lotSize) ? "preset" : "custom",
         lotPrice: String(supply.lotPrice),
         numberOfLots: String(supply.numberOfLots),
         marketSellingPrice: String(supply.marketSellingPrice),
@@ -201,12 +214,14 @@ function SupplyDialog({
 
   /** Produit déjà pris sur une autre ligne → masqué dans ce sélecteur */
   const productsForLine = (lineId: string) =>
-    (products ?? []).filter((p) => {
-      const takenOnAnotherLine = lines.some(
-        (l) => l.id !== lineId && l.productId !== "" && l.productId === p._id
-      );
-      return !takenOnAnotherLine;
-    });
+    sortProductsByName(
+      (products ?? []).filter((p) => {
+        const takenOnAnotherLine = lines.some(
+          (l) => l.id !== lineId && l.productId !== "" && l.productId === p._id
+        );
+        return !takenOnAnotherLine;
+      })
+    );
 
   const createTotals = lines.reduce(
     (acc, line) => {
@@ -299,7 +314,7 @@ function SupplyDialog({
                     <SelectValue placeholder="Sélectionner un produit" />
                   </SelectTrigger>
                   <SelectContent>
-                    {products?.map((p) => (
+                    {sortProductsByName(products ?? []).map((p) => (
                       <SelectItem key={p._id} value={p._id}>
                         {p.name}
                       </SelectItem>
@@ -312,20 +327,44 @@ function SupplyDialog({
                 <div className="space-y-1.5">
                   <Label>Taille du casier (unités)</Label>
                   <Select
-                    value={form.lotSize === "" ? undefined : form.lotSize}
-                    onValueChange={(v) => setForm({ ...form, lotSize: v })}
+                    value={
+                      form.lotSizeMode === "custom"
+                        ? SUPPLY_LOT_SIZE_SELECT_OTHER
+                        : form.lotSize === ""
+                          ? undefined
+                          : form.lotSize
+                    }
+                    onValueChange={(v) => {
+                      if (v === SUPPLY_LOT_SIZE_SELECT_OTHER) {
+                        setForm({ ...form, lotSizeMode: "custom", lotSize: "" });
+                      } else {
+                        setForm({ ...form, lotSizeMode: "preset", lotSize: v });
+                      }
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Choisir une taille" />
                     </SelectTrigger>
                     <SelectContent>
-                      {lotSizeSelectOptions(form.lotSize).map((n) => (
+                      {SUPPLY_LOT_SIZES.map((n) => (
                         <SelectItem key={n} value={String(n)}>
                           {n}
                         </SelectItem>
                       ))}
+                      <SelectItem value={SUPPLY_LOT_SIZE_SELECT_OTHER}>Autre</SelectItem>
                     </SelectContent>
                   </Select>
+                  {form.lotSizeMode === "custom" ? (
+                    <Input
+                      type="number"
+                      min={1}
+                      step={1}
+                      placeholder="Nombre d’unités (entier)"
+                      value={form.lotSize}
+                      onChange={(e) => setForm({ ...form, lotSize: e.target.value })}
+                      required
+                    />
+                  ) : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Prix du casier (FCFA)</Label>
@@ -474,20 +513,44 @@ function SupplyDialog({
                             <div className="space-y-1.5">
                               <Label>Taille du casier (unités)</Label>
                               <Select
-                                value={line.lotSize === "" ? undefined : line.lotSize}
-                                onValueChange={(v) => updateLine(line.id, { lotSize: v })}
+                                value={
+                                  line.lotSizeMode === "custom"
+                                    ? SUPPLY_LOT_SIZE_SELECT_OTHER
+                                    : line.lotSize === ""
+                                      ? undefined
+                                      : line.lotSize
+                                }
+                                onValueChange={(v) => {
+                                  if (v === SUPPLY_LOT_SIZE_SELECT_OTHER) {
+                                    updateLine(line.id, { lotSizeMode: "custom", lotSize: "" });
+                                  } else {
+                                    updateLine(line.id, { lotSizeMode: "preset", lotSize: v });
+                                  }
+                                }}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Choisir une taille" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {lotSizeSelectOptions(line.lotSize).map((n) => (
+                                  {SUPPLY_LOT_SIZES.map((n) => (
                                     <SelectItem key={n} value={String(n)}>
                                       {n}
                                     </SelectItem>
                                   ))}
+                                  <SelectItem value={SUPPLY_LOT_SIZE_SELECT_OTHER}>Autre</SelectItem>
                                 </SelectContent>
                               </Select>
+                              {line.lotSizeMode === "custom" ? (
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  placeholder="Nombre d’unités (entier)"
+                                  value={line.lotSize}
+                                  onChange={(e) => updateLine(line.id, { lotSize: e.target.value })}
+                                  required
+                                />
+                              ) : null}
                             </div>
                             <div className="space-y-1.5">
                               <Label>Prix du casier (FCFA)</Label>

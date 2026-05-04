@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
-import { isStandardSupplyLotSize } from "@/lib/supply-lot-sizes";
+import { isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
 import { marketPriceAboveCatalogError } from "@/lib/product-market-price";
@@ -35,12 +35,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const nextLotSize = Number(lotSize);
-  if (
-    !Number.isFinite(nextLotSize) ||
-    (!isStandardSupplyLotSize(nextLotSize) && nextLotSize !== supply.lotSize)
-  ) {
+  if (!Number.isFinite(nextLotSize) || !isValidSupplyLotSize(nextLotSize)) {
     return NextResponse.json(
-      { error: "Taille du casier invalide : choisir 6, 12 ou 24 unités" },
+      { error: "Taille du casier invalide : indiquez un nombre entier d’unités entre 1 et 1 000 000" },
       { status: 400 }
     );
   }

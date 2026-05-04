@@ -60,10 +60,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   await connectDB();
   const { id } = await params;
   const body = await req.json();
-  const { name, image, sellingPrice, category, defaultMarketSellingPrice } = body;
+  const { name, image, sellingPrice, category, defaultMarketSellingPrice, isActive } = body;
 
   if (category !== undefined && !isValidProductCategory(category)) {
     return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
+  }
+
+  if (isActive !== undefined && typeof isActive !== "boolean") {
+    return NextResponse.json({ error: "isActive doit être un booléen." }, { status: 400 });
   }
 
   const existing = await Product.findById(id);
@@ -75,6 +79,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (name) updateDoc.name = name.trim();
   if (category !== undefined) updateDoc.category = category;
   if (image !== undefined) updateDoc.image = image;
+  if (isActive !== undefined) updateDoc.isActive = isActive;
 
   const existingMarket = parsePriceBodyField(existing.defaultMarketSellingPrice ?? null);
 

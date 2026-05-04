@@ -17,6 +17,9 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   XCircle,
+  Ban,
+  Power,
+  FileDown,
 } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -47,6 +50,8 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { DEFAULT_PRODUCT_CATEGORY, PRODUCT_CATEGORIES } from "@/lib/product-categories";
 import { DEFAULT_LOW_STOCK_ALERT_THRESHOLD } from "@/lib/app-settings";
 import { resolveCatalogPriceForImport, parsePriceBodyField } from "@/lib/product-market-price";
+import type { ProductCatalogExportRow } from "@/lib/product-catalog-export";
+import { ProductCatalogExportDialog } from "@/components/products/ProductCatalogExportDialog";
 
 interface ProductWithStock {
   _id: string;
@@ -57,6 +62,15 @@ interface ProductWithStock {
   defaultMarketSellingPrice?: number;
   marketSellingPrice: number;
   stock: number;
+  purchaseUnitCost?: number;
+  /** Absent en base legacy = actif */
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function productIsActive(p: Pick<ProductWithStock, "isActive">) {
+  return p.isActive !== false;
 }
 
 interface ProductImportPreviewRow {
@@ -800,6 +814,11 @@ export default function ProductsPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<ProductWithStock | undefined>();
   const [productToDelete, setProductToDelete] = useState<ProductWithStock | null>(null);
+  const [productActiveConfirm, setProductActiveConfirm] = useState<{
+    product: ProductWithStock;
+    nextActive: boolean;
+  } | null>(null);
+  const [exportCatalogOpen, setExportCatalogOpen] = useState(false);
 
   const deleteProduct = useMutation({
     mutationFn: async (id: string) => {
@@ -810,6 +829,33 @@ export default function ProductsPage() {
       toast({ variant: "success", title: "Produit supprimé" });
       qc.invalidateQueries({ queryKey: ["products"] });
       setProductToDelete(null);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: err.message });
+    },
+  });
+
+  const toggleProductActive = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const res = await fetch(`/api/products/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Mise à jour impossible");
+    },
+    onSuccess: (_, { isActive }) => {
+      setProductActiveConfirm(null);
+      toast({
+        variant: "success",
+        title: isActive ? "Produit réactivé" : "Produit désactivé",
+        description: isActive
+          ? "Il est à nouveau proposé lors des ventes."
+          : "Il n’apparaît plus dans la sélection des ventes.",
+      });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products-stock"] });
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: err.message });
@@ -925,7 +971,17 @@ export default function ProductsPage() {
       </div>
 
       {/* Products Grid */}
-      <div className="mb-3 flex justify-end">
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 border-[#E5E7EB] text-[#374151]"
+          onClick={() => setExportCatalogOpen(true)}
+        >
+          <FileDown className="h-3.5 w-3.5" />
+          Exporter (PDF / Excel)
+        </Button>
         <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
           Cartes par page
           <select
@@ -963,7 +1019,10 @@ export default function ProductsPage() {
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2, delay: i * 0.03 }}
                 whileHover={{ y: -2 }}
-                className="bg-white rounded-xl border border-[#E5E5E5] overflow-hidden hover:shadow-md transition-all duration-200 group"
+                className={cn(
+                  "bg-white rounded-xl border border-[#E5E5E5] overflow-hidden hover:shadow-md transition-all duration-200 group",
+                  !productIsActive(product) && "opacity-[0.92]"
+                )}
               >
                 {/* Product Image */}
                 <Link href={`/products/${product._id}`}>
@@ -979,6 +1038,13 @@ export default function ProductsPage() {
                       />
                     ) : (
                       <ImageIcon className="w-10 h-10 text-[#D1D5DB]" />
+                    )}
+                    {!productIsActive(product) && (
+                      <div className="absolute top-2 left-2 z-[1]">
+                        <Badge variant="outline" className="border-[#D1D5DB] bg-white/95 text-[#6B7280]">
+                          Désactivé
+                        </Badge>
+                      </div>
                     )}
                     {product.category && (
                       <div className="absolute top-2 right-2">
@@ -1022,7 +1088,28 @@ export default function ProductsPage() {
                       {product.stock} unités
                     </Badge>
                     {isDirector && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title={productIsActive(product) ? "Désactiver" : "Réactiver"}
+                          disabled={toggleProductActive.isPending}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setProductActiveConfirm({
+                              product,
+                              nextActive: !productIsActive(product),
+                            });
+                          }}
+                        >
+                          {productIsActive(product) ? (
+                            <Ban className="w-3.5 h-3.5 text-[#6B7280]" />
+                          ) : (
+                            <Power className="w-3.5 h-3.5 text-emerald-600" />
+                          )}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1067,6 +1154,12 @@ export default function ProductsPage() {
         onImported={() => qc.invalidateQueries({ queryKey: ["products"] })}
       />
 
+      <ProductCatalogExportDialog
+        open={exportCatalogOpen}
+        onOpenChange={setExportCatalogOpen}
+        products={filtered as ProductCatalogExportRow[]}
+      />
+
       <Dialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -1091,6 +1184,64 @@ export default function ProductsPage() {
               onClick={() => productToDelete && deleteProduct.mutate(productToDelete._id)}
             >
               {deleteProduct.isPending ? "Suppression…" : "Supprimer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!productActiveConfirm}
+        onOpenChange={(open) => {
+          if (!open && !toggleProductActive.isPending) setProductActiveConfirm(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {productActiveConfirm?.nextActive ? "Réactiver le produit" : "Désactiver le produit"}
+            </DialogTitle>
+            <DialogDescription>
+              {productActiveConfirm ? (
+                productActiveConfirm.nextActive ? (
+                  <>
+                    Voulez-vous réactiver « {productActiveConfirm.product.name} » ? Il sera à nouveau
+                    proposé lors des nouvelles ventes.
+                  </>
+                ) : (
+                  <>
+                    Voulez-vous désactiver « {productActiveConfirm.product.name} » ? Il ne sera plus
+                    proposé lors des nouvelles ventes. Vous pourrez le réactiver à tout moment.
+                  </>
+                )
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={toggleProductActive.isPending}
+              onClick={() => setProductActiveConfirm(null)}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              variant={productActiveConfirm?.nextActive ? "default" : "destructive"}
+              disabled={toggleProductActive.isPending || !productActiveConfirm}
+              onClick={() => {
+                if (!productActiveConfirm) return;
+                toggleProductActive.mutate({
+                  id: productActiveConfirm.product._id,
+                  isActive: productActiveConfirm.nextActive,
+                });
+              }}
+            >
+              {toggleProductActive.isPending
+                ? "En cours…"
+                : productActiveConfirm?.nextActive
+                  ? "Réactiver"
+                  : "Désactiver"}
             </Button>
           </DialogFooter>
         </DialogContent>

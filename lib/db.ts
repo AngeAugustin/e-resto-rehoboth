@@ -1,8 +1,20 @@
 import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI!;
-const MONGODB_CONNECT_TIMEOUT_MS = 5000;
-const MONGODB_SOCKET_TIMEOUT_MS = 10000;
+
+function mongoTimeoutMs(env: string | undefined, fallback: number): number {
+  if (env === undefined || env === "") return fallback;
+  const n = Number(env);
+  return Number.isFinite(n) && n >= 1000 ? n : fallback;
+}
+
+/** Délais réseau MongoDB (ms). Surclassables via .env si besoin. */
+const MONGODB_SERVER_SELECTION_TIMEOUT_MS = mongoTimeoutMs(
+  process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS,
+  45_000
+);
+const MONGODB_CONNECT_TIMEOUT_MS = mongoTimeoutMs(process.env.MONGODB_CONNECT_TIMEOUT_MS, 30_000);
+const MONGODB_SOCKET_TIMEOUT_MS = mongoTimeoutMs(process.env.MONGODB_SOCKET_TIMEOUT_MS, 120_000);
 
 if (!MONGODB_URI) {
   throw new Error("Please define the MONGODB_URI environment variable in .env.local");
@@ -28,9 +40,11 @@ export async function connectDB(): Promise<typeof mongoose> {
     cached.promise = mongoose
       .connect(MONGODB_URI, {
         bufferCommands: false,
-        serverSelectionTimeoutMS: MONGODB_CONNECT_TIMEOUT_MS,
+        serverSelectionTimeoutMS: MONGODB_SERVER_SELECTION_TIMEOUT_MS,
         connectTimeoutMS: MONGODB_CONNECT_TIMEOUT_MS,
         socketTimeoutMS: MONGODB_SOCKET_TIMEOUT_MS,
+        /** Réduit les échecs transitoires sur Atlas / réseaux instables */
+        retryWrites: true,
       })
       .catch((error) => {
         // Allow a new connection attempt after a transient network failure.

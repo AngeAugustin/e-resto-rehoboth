@@ -29,12 +29,15 @@ export function CloseSaleDialog({
   const [paymentMethod, setPaymentMethod] = useState<SalePaymentMethod>("CASH");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  /** Si monnaie à rendre : l’opérateur doit indiquer s’il l’a remise avant de confirmer la clôture */
+  const [changeReturnedChoice, setChangeReturnedChoice] = useState<"yes" | "no" | null>(null);
 
   useEffect(() => {
     if (!sale) return;
     setShowConfirm(false);
     setAmountPaid("");
     setPaymentMethod("CASH");
+    setChangeReturnedChoice(null);
   }, [sale?._id]);
 
   if (!sale) return null;
@@ -46,20 +49,27 @@ export function CloseSaleDialog({
 
   const goToConfirm = () => {
     if (!amountPaid || parseFloat(amountPaid) < sale.totalAmount) return;
+    setChangeReturnedChoice(null);
     setShowConfirm(true);
   };
 
   const submitClose = async () => {
     if (!amountPaid || parseFloat(amountPaid) < sale.totalAmount) return;
+    const paid = parseFloat(amountPaid);
+    const changeDue = paid - sale.totalAmount;
+    if (changeDue > 0 && changeReturnedChoice !== "yes") return;
     setIsSubmitting(true);
+
+    const changeReturnedAck = changeDue <= 0 || changeReturnedChoice === "yes";
 
     const res = await fetch(`/api/sales/${sale._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "complete",
-        amountPaid: parseFloat(amountPaid),
+        amountPaid: paid,
         paymentMethod,
+        changeReturnedAck,
       }),
     });
 
@@ -79,15 +89,21 @@ export function CloseSaleDialog({
     qc.invalidateQueries({ queryKey: ["products-stock"] });
     setAmountPaid("");
     setShowConfirm(false);
+    setChangeReturnedChoice(null);
     onClose();
   };
 
   const handleDialogOpenChange = (open: boolean) => {
     if (!open) {
       setShowConfirm(false);
+      setChangeReturnedChoice(null);
       onClose();
     }
   };
+
+  const mustAcknowledgeChange = change !== null && change > 0;
+  const canConfirmClose =
+    !mustAcknowledgeChange || changeReturnedChoice === "yes";
 
   return (
     <Dialog open={!!sale} onOpenChange={handleDialogOpenChange}>
@@ -205,11 +221,60 @@ export function CloseSaleDialog({
                 </div>
               )}
             </div>
+
+            {mustAcknowledgeChange ? (
+              <div className="space-y-2">
+                <Label className="text-sm">Avez-vous remis la monnaie au client ?</Label>
+                <p className="text-xs text-[#6B7280]">
+                  La clôture n&apos;est possible qu&apos;après confirmation de la remise de la monnaie.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setChangeReturnedChoice("yes")}
+                    className={cn(
+                      "rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors",
+                      changeReturnedChoice === "yes"
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-[#E5E5E5] bg-white text-[#374151] hover:border-primary/25 hover:bg-[#F5F5F5]"
+                    )}
+                  >
+                    Oui, monnaie remise
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChangeReturnedChoice("no")}
+                    className={cn(
+                      "rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors",
+                      changeReturnedChoice === "no"
+                        ? "border-amber-600 bg-amber-50 text-amber-900"
+                        : "border-[#E5E5E5] bg-white text-[#374151] hover:border-amber-200 hover:bg-amber-50/50"
+                    )}
+                  >
+                    Non, pas encore
+                  </button>
+                </div>
+                {changeReturnedChoice === "no" ? (
+                  <p className="text-xs font-medium text-amber-800">
+                    Remettez d&apos;abord la monnaie au client, puis choisissez « Oui, monnaie remise » pour clôturer.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowConfirm(false)} disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowConfirm(false);
+                  setChangeReturnedChoice(null);
+                }}
+                disabled={isSubmitting}
+              >
                 Retour
               </Button>
-              <Button type="button" onClick={submitClose} disabled={isSubmitting}>
+              <Button type="button" onClick={submitClose} disabled={isSubmitting || !canConfirmClose}>
                 {isSubmitting ? "Clôture…" : "Confirmer la clôture"}
               </Button>
             </DialogFooter>

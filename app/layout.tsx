@@ -33,6 +33,10 @@ const aptos = localFont({
 export const metadata: Metadata = {
   title: `${DEFAULT_SOLUTION_NAME} — Gestion Restaurant`,
   description: "Système de gestion des stocks et des ventes pour restaurant",
+  icons: {
+    icon: [{ url: "/Logo.png", type: "image/png" }],
+    apple: [{ url: "/Logo.png", type: "image/png" }],
+  },
 };
 
 type ThemeCssVars = React.CSSProperties & Record<`--${string}`, string>;

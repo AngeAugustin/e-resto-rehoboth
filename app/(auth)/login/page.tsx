@@ -79,7 +79,7 @@ export default function LoginPage() {
         className="w-full max-w-[400px]"
       >
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
+        <div className="flex flex-col items-center mb-8 text-center">
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}

@@ -111,8 +111,8 @@ export default function SaleWizard({
   });
 
   const { data: products } = useQuery<ProductWithStock[]>({
-    queryKey: ["products-stock"],
-    queryFn: async () => (await fetch("/api/products/stock")).json(),
+    queryKey: ["products-stock", { activeOnly: true }],
+    queryFn: async () => (await fetch("/api/products/stock?activeOnly=1")).json(),
   });
 
   useEffect(() => {

@@ -71,6 +71,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
+    const paidNum = Number(amountPaid);
+    const changeDue = paidNum - sale.totalAmount;
+    if (changeDue > 0 && body.changeReturnedAck !== true) {
+      return NextResponse.json(
+        {
+          error:
+            "Une monnaie est à rendre : indiquez si vous l’avez remise au client avant de clôturer la vente.",
+        },
+        { status: 400 }
+      );
+    }
+
     // Re-validate stock before completing
     for (const item of sale.items) {
       const productId = item.product.toString();
@@ -96,9 +108,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
-    sale.amountPaid = Number(amountPaid);
-    sale.change = Number(amountPaid) - sale.totalAmount;
+    sale.amountPaid = paidNum;
+    sale.change = changeDue;
     sale.paymentMethod = paymentMethod;
+    if (changeDue > 0) {
+      sale.changeReturnedAck = true;
+    }
     sale.status = "COMPLETED";
     await sale.save();
 
