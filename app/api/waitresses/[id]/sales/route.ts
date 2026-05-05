@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")
-    .populate("items.product", "name image sellingPrice")
+    .populate("items.product", "name image marketSellingPrice")
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 });
 

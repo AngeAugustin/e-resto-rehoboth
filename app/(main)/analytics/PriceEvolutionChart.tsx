@@ -20,13 +20,12 @@ type EvolutionRow = {
   key: string;
   labelShort: string;
   labelFull: string;
-  sobebraPrice: number;
   marketPrice: number | null;
 };
 
 type EvolutionResponse = {
   productName: string;
-  sobebraNote: string;
+  footnote?: string;
   series: EvolutionRow[];
 };
 
@@ -46,7 +45,6 @@ async function fetchEvolution(productId: string): Promise<EvolutionResponse> {
 }
 
 const COLOR_MARKET = "#EF4444";
-const COLOR_SOBEBRA = "#6366F1";
 
 function PriceTooltip({
   active,
@@ -54,7 +52,7 @@ function PriceTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ payload: { labelFull: string; marketValue?: number; sobebraPrice: number } }>;
+  payload?: Array<{ payload: { labelFull: string; marketValue?: number } }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
@@ -75,13 +73,6 @@ function PriceTooltip({
         ) : (
           <span>Prix marché — non renseigné</span>
         )}
-      </p>
-      <p className="text-xs text-[#6B7280]">
-        <span className="font-medium" style={{ color: COLOR_SOBEBRA }}>
-          Prix SOBEBRA
-        </span>
-        {" · "}
-        {formatCurrency(row.sobebraPrice)}
       </p>
     </div>
   );
@@ -131,15 +122,12 @@ export default function PriceEvolutionChart() {
     });
   }, [chartData]);
 
-  const avgGapPct = useMemo(() => {
-    const gaps: number[] = [];
-    for (const row of chartData) {
-      const m = row.marketValue;
-      if (m == null || !Number.isFinite(m) || row.sobebraPrice <= 0) continue;
-      gaps.push(((m - row.sobebraPrice) / row.sobebraPrice) * 100);
-    }
-    if (!gaps.length) return null;
-    return gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  const avgMarket = useMemo(() => {
+    const vals = chartData
+      .map((r) => r.marketValue)
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    if (!vals.length) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
   }, [chartData]);
 
   const highlightedLabelShort = chartData.find((d) => d.key === highlightedKey)?.labelShort;
@@ -157,8 +145,8 @@ export default function PriceEvolutionChart() {
     <div className="rounded-[20px] bg-[#E8E8EA] p-5 sm:p-6 shadow-sm">
       <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className="text-lg font-semibold tracking-tight text-[#0D0D0D] sm:text-xl">Prix catalogue vs marché</h3>
-          <p className="mt-0.5 text-sm text-[#6B7280]">Comparatif mensuel sur 12 mois — sélectionnez un produit</p>
+          <h3 className="text-lg font-semibold tracking-tight text-[#0D0D0D] sm:text-xl">Évolution du prix marché</h3>
+          <p className="mt-0.5 text-sm text-[#6B7280]">Suivi mensuel sur 12 mois — sélectionnez un produit</p>
         </div>
         <Select value={productId} onValueChange={setProductId} disabled={!products?.length}>
           <SelectTrigger className="h-10 w-full min-w-[200px] max-w-[280px] rounded-xl border-[#D1D5DB] bg-white text-left text-sm shadow-none sm:w-[280px]">
@@ -174,8 +162,8 @@ export default function PriceEvolutionChart() {
         </Select>
       </div>
 
-      {evolution?.sobebraNote ? (
-        <p className="mb-4 text-xs leading-relaxed text-[#6B7280]">{evolution.sobebraNote}</p>
+      {evolution?.footnote ? (
+        <p className="mb-4 text-xs leading-relaxed text-[#6B7280]">{evolution.footnote}</p>
       ) : null}
 
       <div className="flex gap-2 sm:gap-3">
@@ -186,7 +174,7 @@ export default function PriceEvolutionChart() {
             className="flex h-7 w-7 items-center justify-center rounded-md text-[#9CA3AF] transition hover:bg-black/5 hover:text-[#374151]"
             onClick={() => scrollMonths("up")}
           >
-            <ChevronUp className="h-4 w-4" />
+            <ChevronUp className="w-4 h-4" />
           </button>
           <div
             ref={monthScrollRef}
@@ -217,7 +205,7 @@ export default function PriceEvolutionChart() {
             className="flex h-7 w-7 items-center justify-center rounded-md text-[#9CA3AF] transition hover:bg-black/5 hover:text-[#374151]"
             onClick={() => scrollMonths("down")}
           >
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="w-4 h-4" />
           </button>
         </div>
 
@@ -236,10 +224,7 @@ export default function PriceEvolutionChart() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
-              <LineChart
-                data={chartData}
-                margin={{ top: 8, right: 12, left: 0, bottom: 4 }}
-              >
+              <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
                 <CartesianGrid stroke="#D4D4D8" strokeDasharray="2 6" vertical />
                 <XAxis
                   dataKey="labelShort"
@@ -269,15 +254,6 @@ export default function PriceEvolutionChart() {
                   dot={false}
                   activeDot={{ r: 5, fill: "#fff", stroke: COLOR_MARKET, strokeWidth: 2 }}
                 />
-                <Line
-                  type="natural"
-                  dataKey="sobebraPrice"
-                  name="Prix SOBEBRA"
-                  stroke={COLOR_SOBEBRA}
-                  strokeWidth={3}
-                  dot={false}
-                  activeDot={{ r: 5, fill: "#fff", stroke: COLOR_SOBEBRA, strokeWidth: 2 }}
-                />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -289,22 +265,16 @@ export default function PriceEvolutionChart() {
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: COLOR_MARKET }} />
             <span className="font-medium">Prix marché</span>
-            <span className="text-[#9CA3AF]">(dernier appro du mois)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: COLOR_SOBEBRA }} />
-            <span className="font-medium">Prix SOBEBRA</span>
-            <span className="text-[#9CA3AF]">(catalogue actuel)</span>
+            <span className="text-[#9CA3AF]">(dernier appro du mois, sinon fiche produit)</span>
           </div>
         </div>
         <div className="text-left sm:text-right">
           <div className="text-3xl font-semibold tabular-nums tracking-tight text-[#0D0D0D] sm:text-4xl">
-            {avgGapPct != null ? `${avgGapPct.toFixed(1)}%` : "—"}
+            {avgMarket != null ? formatCurrency(avgMarket) : "—"}
           </div>
-          <div className="mt-0.5 text-xs text-[#6B7280]">Écart moyen (marché vs SOBEBRA)</div>
+          <div className="mt-0.5 text-xs text-[#6B7280]">Moyenne sur la période affichée</div>
         </div>
       </div>
-
     </div>
   );
 }

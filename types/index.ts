@@ -17,9 +17,8 @@ export interface IProduct {
   name: string;
   category?: string;
   image?: string;
-  sellingPrice: number;
-  /** Prix marché par défaut pour l’approvisionnement (strictement supérieur au prix SOBEBRA) */
-  defaultMarketSellingPrice?: number;
+  /** Prix de vente unitaire marché (fiche produit) */
+  marketSellingPrice: number;
   stock: number;
   createdAt: string;
   updatedAt: string;
@@ -64,7 +63,10 @@ export interface ISale {
   totalAmount: number;
   amountPaid?: number;
   change?: number;
-  /** Déclaration à la clôture : monnaie remise au client (si monnaie à rendre) */
+  /**
+   * Si monnaie à rendre : `true` = remise au client à la clôture ; `false` = pas encore remise (mention sur le ticket,
+   * délai de récupération).
+   */
   changeReturnedAck?: boolean;
   /** Présent pour les ventes clôturées après ajout du champ (anciennes ventes peuvent ne pas l’avoir) */
   paymentMethod?: SalePaymentMethod;
@@ -101,7 +103,7 @@ export interface DashboardStats {
   totalProducts: number;
   weeklyRevenue: { date: string; revenue: number }[];
   topProducts: { name: string; sold: number; revenue: number }[];
-  lowStockProducts: { id: string; name: string; image?: string; stock: number; sellingPrice: number }[];
+  lowStockProducts: { id: string; name: string; image?: string; stock: number; marketSellingPrice: number }[];
   recentSales: ISale[];
 }
 

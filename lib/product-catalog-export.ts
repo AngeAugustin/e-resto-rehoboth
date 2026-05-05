@@ -5,8 +5,6 @@ export type ProductCatalogExportRow = {
   name: string;
   category?: string;
   image?: string;
-  sellingPrice: number;
-  defaultMarketSellingPrice?: number;
   marketSellingPrice: number;
   stock: number;
   isActive?: boolean;

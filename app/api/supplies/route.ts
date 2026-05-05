@@ -4,7 +4,6 @@ import { requireAuth } from "@/lib/auth-middleware";
 import { isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
-import { marketPriceAboveCatalogError } from "@/lib/product-market-price";
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -12,7 +11,7 @@ export async function GET() {
 
   await connectDB();
   const supplies = await Supply.find()
-    .populate("product", "name image sellingPrice defaultMarketSellingPrice")
+    .populate("product", "name image marketSellingPrice")
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 });
 
@@ -46,7 +45,7 @@ function parseSupplyItem(raw: Record<string, unknown>): SupplyItemInput | null {
     !Number.isFinite(numberOfLots) ||
     numberOfLots < 1 ||
     !Number.isFinite(marketSellingPrice) ||
-    marketSellingPrice < 0
+    marketSellingPrice <= 0
   ) {
     return null;
   }
@@ -93,11 +92,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        const priceErr = marketPriceAboveCatalogError(Number(product.sellingPrice), item.marketSellingPrice);
-        if (priceErr) {
-          return NextResponse.json({ error: `${priceErr} (produit ${product.name})` }, { status: 400 });
-        }
-
         const totalUnits = item.lotSize * item.numberOfLots;
         const totalCost = item.lotPrice * item.numberOfLots;
 
@@ -113,7 +107,11 @@ export async function POST(req: NextRequest) {
         });
         await supply.save();
 
-        await supply.populate("product", "name image sellingPrice defaultMarketSellingPrice");
+        await Product.findByIdAndUpdate(item.productId, {
+          marketSellingPrice: item.marketSellingPrice,
+        });
+
+        await supply.populate("product", "name image marketSellingPrice");
         await supply.populate("createdBy", "firstName lastName");
         created.push(supply.toJSON());
       }
@@ -140,9 +138,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
   }
 
-  const priceErr = marketPriceAboveCatalogError(Number(product.sellingPrice), Number(marketSellingPrice));
-  if (priceErr) {
-    return NextResponse.json({ error: priceErr }, { status: 400 });
+  const m = Number(marketSellingPrice);
+  if (!Number.isFinite(m) || m <= 0) {
+    return NextResponse.json({ error: "Prix de vente marché invalide." }, { status: 400 });
   }
 
   const ls = Number(lotSize);
@@ -161,7 +159,7 @@ export async function POST(req: NextRequest) {
     lotSize: Number(lotSize),
     lotPrice: Number(lotPrice),
     numberOfLots: Number(numberOfLots),
-    marketSellingPrice: Number(marketSellingPrice),
+    marketSellingPrice: m,
     totalUnits,
     totalCost,
     createdBy: session!.user.id,
@@ -169,7 +167,9 @@ export async function POST(req: NextRequest) {
 
   await supply.save();
 
-  await supply.populate("product", "name image sellingPrice defaultMarketSellingPrice");
+  await Product.findByIdAndUpdate(productId, { marketSellingPrice: m });
+
+  await supply.populate("product", "name image marketSellingPrice");
   await supply.populate("createdBy", "firstName lastName");
 
   return NextResponse.json(supply, { status: 201 });

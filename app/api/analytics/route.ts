@@ -285,7 +285,7 @@ export async function GET(request: Request) {
           _id: 1,
           name: { $ifNull: ["$p.name", "Inconnu"] },
           image: { $ifNull: ["$p.image", ""] },
-          price: { $ifNull: ["$p.sellingPrice", 0] },
+          price: { $ifNull: ["$p.marketSellingPrice", 0] },
           revenue: 1,
           units: 1,
           margin: 1,

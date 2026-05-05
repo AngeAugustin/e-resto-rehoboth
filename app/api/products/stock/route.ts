@@ -36,7 +36,6 @@ export async function GET(req: NextRequest) {
     ]),
     Supply.aggregate<{
       _id: Types.ObjectId;
-      marketSellingPrice: number;
       totalCost: number;
       totalUnits: number;
     }>([
@@ -44,7 +43,6 @@ export async function GET(req: NextRequest) {
       {
         $group: {
           _id: "$product",
-          marketSellingPrice: { $first: "$marketSellingPrice" },
           totalCost: { $first: "$totalCost" },
           totalUnits: { $first: "$totalUnits" },
         },
@@ -62,9 +60,9 @@ export async function GET(req: NextRequest) {
     const totalSold = soldMap.get(id) ?? 0;
     const latest = latestMap.get(id);
     const hasLatest = latest && latest.totalUnits > 0;
-    const marketSellingPrice = hasLatest
-      ? latest.marketSellingPrice
-      : (p as { defaultMarketSellingPrice?: number }).defaultMarketSellingPrice ?? p.sellingPrice;
+    const rawMarket = (p as { marketSellingPrice?: number }).marketSellingPrice;
+    const marketSellingPrice =
+      typeof rawMarket === "number" && Number.isFinite(rawMarket) && rawMarket > 0 ? rawMarket : 0;
     const purchaseUnitCost = hasLatest ? latest.totalCost / latest.totalUnits : 0;
     return {
       ...p,

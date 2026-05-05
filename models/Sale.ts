@@ -18,7 +18,7 @@ export interface ISaleDocument extends Document {
   totalAmount: number;
   amountPaid?: number;
   change?: number;
-  /** À la clôture : confirmé par l’opérateur si une monnaie était à rendre */
+  /** À la clôture si reliquat : true = remis au client ; false = pas encore (mention délai sur ticket) */
   changeReturnedAck?: boolean;
   paymentMethod?: "CASH" | "MOBILE_MONEY";
   status: "PENDING" | "COMPLETED" | "CANCELLED";

@@ -23,7 +23,7 @@ export async function GET() {
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")
-    .populate("items.product", "name image sellingPrice")
+    .populate("items.product", "name image marketSellingPrice")
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 });
 
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
   await sale.populate("waitress", "firstName lastName");
   await sale.populate("tables", "number name");
   await sale.populate("table", "number name");
-  await sale.populate("items.product", "name image sellingPrice");
+  await sale.populate("items.product", "name image marketSellingPrice");
 
   return NextResponse.json(sale, { status: 201 });
 }

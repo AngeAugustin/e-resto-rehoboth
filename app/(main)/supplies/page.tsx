@@ -42,8 +42,7 @@ interface ProductOption {
   _id: string;
   name: string;
   image?: string;
-  sellingPrice: number;
-  defaultMarketSellingPrice?: number;
+  marketSellingPrice: number;
 }
 
 async function fetchSupplies(): Promise<ISupply[]> {
@@ -90,11 +89,10 @@ const newDraftLine = (): SupplyDraftLine => ({
 
 function isLineComplete(line: SupplyForm, products: ProductOption[] | undefined): boolean {
   if (!line.productId) return false;
+  if (products && !products.some((p) => p._id === line.productId)) return false;
   const lotPrice = parseFloat(line.lotPrice);
   const numberOfLots = parseInt(line.numberOfLots, 10);
   const marketSellingPrice = parseFloat(line.marketSellingPrice);
-  const sobebra = products?.find((p) => p._id === line.productId)?.sellingPrice;
-  if (sobebra === undefined || !Number.isFinite(sobebra)) return false;
   if (
     !isValidLotSizeChoice(line.lotSize) ||
     !Number.isFinite(lotPrice) ||
@@ -102,7 +100,7 @@ function isLineComplete(line: SupplyForm, products: ProductOption[] | undefined)
     !Number.isFinite(numberOfLots) ||
     numberOfLots < 1 ||
     !Number.isFinite(marketSellingPrice) ||
-    marketSellingPrice <= sobebra
+    marketSellingPrice <= 0
   ) {
     return false;
   }
@@ -278,6 +276,8 @@ function SupplyDialog({
     qc.invalidateQueries({ queryKey: ["supplies"] });
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["products-list"] });
+    qc.invalidateQueries({ queryKey: ["products-stock"] });
+    qc.invalidateQueries({ queryKey: ["product"] });
     onClose();
     setForm(emptyForm());
     setLines([newDraftLine()]);
@@ -304,8 +304,8 @@ function SupplyDialog({
                   onValueChange={(v) => {
                     const p = products?.find((x) => x._id === v);
                     const pref =
-                      p?.defaultMarketSellingPrice != null && Number.isFinite(p.defaultMarketSellingPrice)
-                        ? String(p.defaultMarketSellingPrice)
+                      p?.marketSellingPrice != null && Number.isFinite(p.marketSellingPrice)
+                        ? String(p.marketSellingPrice)
                         : "";
                     setForm({ ...form, productId: v, marketSellingPrice: pref });
                   }}
@@ -401,7 +401,9 @@ function SupplyDialog({
                     required
                     min={0}
                   />
-                  <p className="text-[10px] text-[#9CA3AF]">Strictement supérieur au prix SOBEBRA du produit.</p>
+                  <p className="text-[10px] text-[#9CA3AF]">
+                    Valeur enregistrée sur la fiche produit (strictement positive). Modifiable ici.
+                  </p>
                 </div>
               </div>
 
@@ -490,9 +492,8 @@ function SupplyDialog({
                               onValueChange={(v) => {
                                 const p = products?.find((x) => x._id === v);
                                 const pref =
-                                  p?.defaultMarketSellingPrice != null &&
-                                  Number.isFinite(p.defaultMarketSellingPrice)
-                                    ? String(p.defaultMarketSellingPrice)
+                                  p?.marketSellingPrice != null && Number.isFinite(p.marketSellingPrice)
+                                    ? String(p.marketSellingPrice)
                                     : "";
                                 updateLine(line.id, { productId: v, marketSellingPrice: pref });
                               }}

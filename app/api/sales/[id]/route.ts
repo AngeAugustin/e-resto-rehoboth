@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")
-    .populate("items.product", "name image sellingPrice")
+    .populate("items.product", "name image marketSellingPrice")
     .populate("createdBy", "firstName lastName")
     .lean();
 
@@ -73,11 +73,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const paidNum = Number(amountPaid);
     const changeDue = paidNum - sale.totalAmount;
-    if (changeDue > 0 && body.changeReturnedAck !== true) {
+    if (changeDue > 0 && typeof body.changeReturnedAck !== "boolean") {
       return NextResponse.json(
         {
           error:
-            "Une monnaie est à rendre : indiquez si vous l’avez remise au client avant de clôturer la vente.",
+            "Une monnaie est à rendre : indiquez si vous l’avez déjà remise au client ou non avant de clôturer la vente.",
         },
         { status: 400 }
       );
@@ -112,7 +112,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     sale.change = changeDue;
     sale.paymentMethod = paymentMethod;
     if (changeDue > 0) {
-      sale.changeReturnedAck = true;
+      sale.changeReturnedAck = body.changeReturnedAck === true;
+    } else {
+      sale.changeReturnedAck = undefined;
     }
     sale.status = "COMPLETED";
     await sale.save();
@@ -216,7 +218,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")
-    .populate("items.product", "name image sellingPrice")
+    .populate("items.product", "name image marketSellingPrice")
     .populate("createdBy", "firstName lastName")
     .lean();
 

@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import Product from "@/models/Product";
 import { isValidProductCategory } from "@/lib/product-categories";
-import { parsePriceBodyField, resolveCatalogPriceForImport } from "@/lib/product-market-price";
+import { parsePositiveMarketPrice } from "@/lib/product-market-price";
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -21,18 +21,16 @@ export async function POST(req: NextRequest) {
   await connectDB();
 
   const body = await req.json();
-  const { name, image, sellingPrice, category, defaultMarketSellingPrice } = body;
+  const { name, image, category, marketSellingPrice } = body;
 
   if (!name || !category) {
     return NextResponse.json({ error: "Nom et catégorie requis" }, { status: 400 });
   }
 
-  const marketDef = parsePriceBodyField(defaultMarketSellingPrice);
-  const sobebraRaw = parsePriceBodyField(sellingPrice);
-  const resolved = resolveCatalogPriceForImport(sobebraRaw, marketDef);
-  if (!resolved) {
+  const market = parsePositiveMarketPrice(marketSellingPrice);
+  if (market == null) {
     return NextResponse.json(
-      { error: "Prix de vente marché requis. Le prix SOBEBRA est optionnel (déduit automatiquement si absent ou 0 avec un marché > 1)." },
+      { error: "Prix de vente marché requis (valeur strictement positive)." },
       { status: 400 }
     );
   }
@@ -50,8 +48,7 @@ export async function POST(req: NextRequest) {
     name: name.trim(),
     category,
     image: image || "",
-    sellingPrice: resolved.sellingPrice,
-    defaultMarketSellingPrice: resolved.defaultMarketSellingPrice,
+    marketSellingPrice: market,
   });
 
   return NextResponse.json(product, { status: 201 });

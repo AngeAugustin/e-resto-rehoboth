@@ -82,7 +82,7 @@ export async function GET() {
       { $unwind: "$items" },
       { $group: { _id: "$items.product", total: { $sum: "$items.quantity" } } },
     ]),
-    Product.find({}, { _id: 1, name: 1, image: 1, sellingPrice: 1 }).lean(),
+    Product.find({}, { _id: 1, name: 1, image: 1, marketSellingPrice: 1 }).lean(),
     Sale.find()
       .populate("waitress", "firstName lastName")
       .populate("tables", "number name")
@@ -109,7 +109,7 @@ export async function GET() {
     settingsDoc?.lowStockAlertThreshold
   );
   let lowStockCount = 0;
-  const lowStockProducts: Array<{ id: string; name: string; image?: string; stock: number; sellingPrice: number }> =
+  const lowStockProducts: Array<{ id: string; name: string; image?: string; stock: number; marketSellingPrice: number }> =
     [];
   for (const p of productsLite) {
     const supplied = suppliedMap.get(p._id.toString()) ?? 0;
@@ -122,7 +122,7 @@ export async function GET() {
         name: (p as { name?: string }).name ?? "Produit",
         image: (p as { image?: string }).image ?? "",
         stock,
-        sellingPrice: Number((p as { sellingPrice?: number }).sellingPrice ?? 0),
+        marketSellingPrice: Number((p as { marketSellingPrice?: number }).marketSellingPrice ?? 0),
       });
     }
   }

@@ -5,8 +5,7 @@ export interface ProductImportRow {
   rowNumber: number;
   name: string;
   category: ProductCategory | null;
-  sellingPrice: number | null;
-  defaultMarketSellingPrice: number | null;
+  marketSellingPrice: number | null;
   image: string;
   valid: boolean;
   error?: string;
@@ -52,12 +51,6 @@ function findMarketPriceColumnIndex(headers: string[]): number {
   return headers.findIndex((h) => h.includes("marche") && h.includes("prix"));
 }
 
-function findCatalogPriceColumnIndex(headers: string[], marketIdx: number): number {
-  const sobe = headers.findIndex((h, i) => i !== marketIdx && (h.includes("sobebra") || h.includes("sobeb")));
-  if (sobe >= 0) return sobe;
-  return headers.findIndex((h, i) => i !== marketIdx && h.includes("prix") && !h.includes("marche"));
-}
-
 function parseImageUrl(value: unknown): string {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
@@ -82,7 +75,6 @@ function parseExcelRows(buffer: Buffer): ProductImportRow[] {
   const productIndex = headers.findIndex((h) => h === "produit" || h.includes("produit"));
   const categoryIndex = headers.findIndex((h) => h === "categorie" || h.includes("categorie"));
   const marketPriceIndex = findMarketPriceColumnIndex(headers);
-  const priceIndex = findCatalogPriceColumnIndex(headers, marketPriceIndex);
   const imageIndex = headers.findIndex((h) => h.includes("lienimage") || h === "image" || h.includes("lien"));
 
   return rows.slice(1).map((cellsRaw, idx) => {
@@ -90,34 +82,21 @@ function parseExcelRows(buffer: Buffer): ProductImportRow[] {
     const name = String(cells[productIndex] ?? "").trim();
     const categoryRaw = String(cells[categoryIndex] ?? "").trim();
     const category = normalizeImportedCategory(categoryRaw);
-    const sellingPrice = parsePrice(cells[priceIndex]);
-    const defaultMarketSellingPrice = marketPriceIndex >= 0 ? parsePrice(cells[marketPriceIndex]) : null;
+    const marketSellingPrice = marketPriceIndex >= 0 ? parsePrice(cells[marketPriceIndex]) : null;
     const image = imageIndex >= 0 ? parseImageUrl(cells[imageIndex]) : "";
 
     const errors: string[] = [];
     if (!name) errors.push("Nom manquant");
     if (!category) errors.push("Catégorie invalide");
-    if (defaultMarketSellingPrice === null || !Number.isFinite(defaultMarketSellingPrice) || defaultMarketSellingPrice <= 0) {
+    if (marketSellingPrice === null || !Number.isFinite(marketSellingPrice) || marketSellingPrice <= 0) {
       errors.push("Prix marché invalide");
-    }
-    if (sellingPrice !== null) {
-      if (!Number.isFinite(sellingPrice) || sellingPrice < 0) {
-        errors.push("Prix SOBEBRA invalide");
-      } else if (
-        defaultMarketSellingPrice !== null &&
-        Number.isFinite(defaultMarketSellingPrice) &&
-        defaultMarketSellingPrice <= sellingPrice
-      ) {
-        errors.push("Prix marché <= prix SOBEBRA");
-      }
     }
 
     return {
       rowNumber: idx + 2,
       name,
       category,
-      sellingPrice,
-      defaultMarketSellingPrice,
+      marketSellingPrice,
       image,
       valid: errors.length === 0,
       ...(errors.length > 0 && { error: errors.join(" · ") }),
@@ -167,7 +146,6 @@ function parsePdfRows(text: string): ProductImportRow[] {
     .filter(Boolean);
 
   const mapped: (ProductImportRow | null)[] = lines.map((line, idx) => {
-    // Ignore header line if present.
     if (idx === 0 && /produit/i.test(line) && /categorie/i.test(line) && /prix/i.test(line)) {
       return null;
     }
@@ -178,7 +156,7 @@ function parsePdfRows(text: string): ProductImportRow[] {
 
     const priceMatch = lineWithoutUrl.match(/(\d[\d\s.,]*)$/);
     const priceRaw = priceMatch ? priceMatch[1] : "";
-    const sellingPrice = parsePrice(priceRaw);
+    const marketSellingPrice = parsePrice(priceRaw);
     const beforePrice = priceMatch
       ? lineWithoutUrl.slice(0, lineWithoutUrl.length - priceRaw.length).trim()
       : lineWithoutUrl;
@@ -187,16 +165,15 @@ function parsePdfRows(text: string): ProductImportRow[] {
     const errors: string[] = [];
     if (!name) errors.push("Nom manquant");
     if (!category) errors.push("Catégorie invalide");
-    if (sellingPrice === null) errors.push("Prix invalide");
-    // Le format PDF historique ne contient pas le prix marché.
-    errors.push("Prix marché manquant");
+    if (marketSellingPrice === null || !Number.isFinite(marketSellingPrice) || marketSellingPrice <= 0) {
+      errors.push("Prix marché invalide");
+    }
 
     return {
       rowNumber: idx + 1,
       name,
       category,
-      sellingPrice,
-      defaultMarketSellingPrice: null,
+      marketSellingPrice,
       image,
       valid: errors.length === 0,
       ...(errors.length > 0 && { error: errors.join(" · ") }),
@@ -224,8 +201,6 @@ export async function parseProductImportFile(input: {
   }
 
   if (fileName.endsWith(".pdf") || mime.includes("pdf")) {
-    // Load PDF parser lazily to avoid failing module initialization
-    // for regular Excel imports when PDF runtime dependencies are unavailable.
     const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: new Uint8Array(input.buffer) });
     try {

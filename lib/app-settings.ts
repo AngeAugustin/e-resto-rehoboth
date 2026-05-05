@@ -22,6 +22,12 @@ export const DEFAULT_LOGO_URL = "/Logo.png";
 /** Nombre d’unités (inclus) en dessous duquel le stock est considéré comme bas (alerte email, indicateurs). */
 export const DEFAULT_LOW_STOCK_ALERT_THRESHOLD = 5;
 
+/**
+ * Délai (jours calendaires) indiqué sur le ticket lorsque le reliquat n’a pas encore été remis au client à la clôture.
+ * Passé ce délai, le ticket précise que la somme n’est plus remboursable.
+ */
+export const SALE_CHANGE_PICKUP_DEADLINE_DAYS: number = 7;
+
 const LOW_STOCK_THRESHOLD_MIN = 0;
 const LOW_STOCK_THRESHOLD_MAX = 999;
 

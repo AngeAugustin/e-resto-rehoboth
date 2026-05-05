@@ -20,8 +20,7 @@ interface ProductDetail {
     _id: string;
     name: string;
     image?: string;
-    sellingPrice: number;
-    defaultMarketSellingPrice?: number;
+    marketSellingPrice: number;
     stock: number;
   };
   supplies: Array<{
@@ -107,14 +106,9 @@ export default function ProductDetailPage() {
   const { product } = data;
 
   const displayPrice =
-    supplies[0]?.marketSellingPrice ??
-    product.defaultMarketSellingPrice ??
-    product.sellingPrice;
-  const priceLabel = supplies[0]
-    ? null
-    : product.defaultMarketSellingPrice != null
-      ? "Prix vente marché par défaut (fiche produit)"
-      : "Prix fiche produit";
+    product.marketSellingPrice != null && Number.isFinite(product.marketSellingPrice)
+      ? product.marketSellingPrice
+      : 0;
 
   return (
     <div className="space-y-6">
@@ -157,19 +151,7 @@ export default function ProductDetailPage() {
                     {product.name}
                   </h1>
                   <p className="mt-1 text-2xl font-bold text-[#0D0D0D] sm:text-3xl">{formatCurrency(displayPrice)}</p>
-                  {priceLabel != null && (
-                    <p className="mt-1 text-sm text-[#6B7280]">{priceLabel}</p>
-                  )}
-                </div>
-                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-[#6B7280] md:justify-start">
-                  {product.defaultMarketSellingPrice != null && (
-                    <p>
-                      Prix marché par défaut à l&apos;appro :{" "}
-                      <span className="font-medium text-[#0D0D0D]">
-                        {formatCurrency(product.defaultMarketSellingPrice)}
-                      </span>
-                    </p>
-                  )}
+                  <p className="mt-1 text-sm text-[#6B7280]">Prix de vente unitaire marché (fiche produit)</p>
                 </div>
               </div>
 

@@ -256,7 +256,7 @@ export default function DashboardCharts({ data }: { data: DashboardStats }) {
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-[#0D0D0D]">{product.name}</p>
-                          <p className="text-xs text-[#9CA3AF]">Prix: {formatCurrency(product.sellingPrice)}</p>
+                          <p className="text-xs text-[#9CA3AF]">Prix: {formatCurrency(product.marketSellingPrice)}</p>
                         </div>
                       </div>
                       <Badge variant={product.stock <= 0 ? "destructive" : "warning"} className="shrink-0">

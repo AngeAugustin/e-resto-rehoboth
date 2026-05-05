@@ -7,10 +7,8 @@ export interface IProductDocument extends Document {
   image?: string;
   /** Si false, le produit n’apparaît pas dans les nouvelles ventes. */
   isActive: boolean;
-  /** Prix catalogue SOBEBRA (référence, toujours inférieur au prix marché) */
-  sellingPrice: number;
-  /** Prix de vente unitaire marché par défaut (prérempli à l’appro ; modifiable) */
-  defaultMarketSellingPrice?: number;
+  /** Prix de vente unitaire marché (référence catalogue, affichage et ventes). */
+  marketSellingPrice: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,15 +31,15 @@ const ProductSchema = new Schema<IProductDocument>(
       type: String,
       default: "",
     },
-    sellingPrice: {
+    marketSellingPrice: {
       type: Number,
-      required: [true, "Le prix de vente est requis"],
-      min: [0, "Le prix ne peut pas être négatif"],
-      default: 0,
-    },
-    defaultMarketSellingPrice: {
-      type: Number,
-      min: [0, "Le prix marché ne peut pas être négatif"],
+      required: [true, "Le prix de vente marché est requis"],
+      validate: {
+        validator(v: number) {
+          return Number.isFinite(v) && v > 0;
+        },
+        message: "Le prix de vente marché doit être strictement positif",
+      },
     },
     isActive: {
       type: Boolean,
@@ -54,7 +52,6 @@ const ProductSchema = new Schema<IProductDocument>(
 const existingModel = mongoose.models.Product as Model<IProductDocument> | undefined;
 
 if (existingModel) {
-  // En dev, le modèle peut rester en cache sans les nouveaux champs.
   if (!existingModel.schema.path("category")) {
     existingModel.schema.add({
       category: {
@@ -65,11 +62,16 @@ if (existingModel) {
       },
     });
   }
-  if (!existingModel.schema.path("defaultMarketSellingPrice")) {
+  if (!existingModel.schema.path("marketSellingPrice")) {
     existingModel.schema.add({
-      defaultMarketSellingPrice: {
+      marketSellingPrice: {
         type: Number,
-        min: [0, "Le prix marché ne peut pas être négatif"],
+        validate: {
+          validator(v: number) {
+            return v == null || (Number.isFinite(v) && v > 0);
+          },
+          message: "Le prix de vente marché doit être strictement positif",
+        },
       },
     });
   }

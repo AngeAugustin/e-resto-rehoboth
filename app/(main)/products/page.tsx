@@ -49,7 +49,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 import { DEFAULT_PRODUCT_CATEGORY, PRODUCT_CATEGORIES } from "@/lib/product-categories";
 import { DEFAULT_LOW_STOCK_ALERT_THRESHOLD } from "@/lib/app-settings";
-import { resolveCatalogPriceForImport, parsePriceBodyField } from "@/lib/product-market-price";
+import { parsePositiveMarketPrice } from "@/lib/product-market-price";
 import type { ProductCatalogExportRow } from "@/lib/product-catalog-export";
 import { ProductCatalogExportDialog } from "@/components/products/ProductCatalogExportDialog";
 
@@ -58,8 +58,6 @@ interface ProductWithStock {
   name: string;
   category?: string;
   image?: string;
-  sellingPrice: number;
-  defaultMarketSellingPrice?: number;
   marketSellingPrice: number;
   stock: number;
   purchaseUnitCost?: number;
@@ -77,8 +75,7 @@ interface ProductImportPreviewRow {
   rowNumber: number;
   name: string;
   category: string | null;
-  sellingPrice: number | null;
-  defaultMarketSellingPrice: number | null;
+  marketSellingPrice: number | null;
   image: string;
   valid: boolean;
   error?: string;
@@ -105,7 +102,7 @@ interface ProductFormData {
   name: string;
   category: string;
   image: string;
-  defaultMarketSellingPrice: string;
+  marketSellingPrice: string;
 }
 
 function ProductFormDialog({
@@ -123,7 +120,7 @@ function ProductFormDialog({
     name: "",
     category: DEFAULT_PRODUCT_CATEGORY,
     image: "",
-    defaultMarketSellingPrice: "",
+    marketSellingPrice: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -135,9 +132,9 @@ function ProductFormDialog({
       name: product?.name ?? "",
       category: product?.category ?? DEFAULT_PRODUCT_CATEGORY,
       image: product?.image ?? "",
-      defaultMarketSellingPrice:
-        product?.defaultMarketSellingPrice != null
-          ? String(product.defaultMarketSellingPrice)
+      marketSellingPrice:
+        product?.marketSellingPrice != null && Number.isFinite(product.marketSellingPrice)
+          ? String(product.marketSellingPrice)
           : "",
     });
     setImageFile(null);
@@ -212,9 +209,7 @@ function ProductFormDialog({
     const url = product ? `/api/products/${product._id}` : "/api/products";
     const method = product ? "PUT" : "POST";
 
-    const trimmedMarket = form.defaultMarketSellingPrice.trim();
-    const marketDefRaw = parsePriceBodyField(trimmedMarket);
-
+    const trimmedMarket = form.marketSellingPrice.trim();
     const body: Record<string, unknown> = {
       name: form.name,
       category: form.category,
@@ -222,56 +217,30 @@ function ProductFormDialog({
     };
 
     if (!product) {
-      if (marketDefRaw == null) {
+      const m = parsePositiveMarketPrice(trimmedMarket);
+      if (m == null) {
         setIsSubmitting(false);
         toast({
           variant: "destructive",
           title: "Prix marché requis",
-          description: "Indiquez le prix de vente unitaire marché.",
+          description: "Indiquez le prix de vente unitaire marché (strictement positif).",
         });
         return;
       }
-      const resolved = resolveCatalogPriceForImport(null, marketDefRaw);
-      if (!resolved) {
-        setIsSubmitting(false);
-        toast({
-          variant: "destructive",
-          title: "Prix invalides",
-          description: "Le prix marché doit être valide.",
-        });
-        return;
-      }
-      body.sellingPrice = resolved.sellingPrice;
-      body.defaultMarketSellingPrice = resolved.defaultMarketSellingPrice;
+      body.marketSellingPrice = m;
     } else {
-      const m =
-        trimmedMarket !== ""
-          ? marketDefRaw
-          : parsePriceBodyField(product.defaultMarketSellingPrice ?? null);
-
       if (trimmedMarket !== "") {
-        if (m != null && Number.isFinite(m) && m > 0) {
-          const resolved = resolveCatalogPriceForImport(null, m);
-          if (!resolved) {
-            setIsSubmitting(false);
-            toast({
-              variant: "destructive",
-              title: "Prix invalides",
-              description: "Le prix marché doit être valide.",
-            });
-            return;
-          }
-          body.sellingPrice = resolved.sellingPrice;
-          body.defaultMarketSellingPrice = resolved.defaultMarketSellingPrice;
-        } else {
+        const m = parsePositiveMarketPrice(trimmedMarket);
+        if (m == null) {
           setIsSubmitting(false);
           toast({
             variant: "destructive",
             title: "Prix marché requis",
-            description: "Indiquez un prix de vente marché valide.",
+            description: "Indiquez un prix de vente marché valide (strictement positif).",
           });
           return;
         }
+        body.marketSellingPrice = m;
       }
     }
 
@@ -371,14 +340,14 @@ function ProductFormDialog({
             <Input
               type="number"
               placeholder="2000"
-              value={form.defaultMarketSellingPrice}
-              onChange={(e) => setForm({ ...form, defaultMarketSellingPrice: e.target.value })}
+              value={form.marketSellingPrice}
+              onChange={(e) => setForm({ ...form, marketSellingPrice: e.target.value })}
               required={!product}
               min={0}
             />
             <p className="text-[11px] text-[#9CA3AF]">
-              Valeur proposée par défaut à l&apos;approvisionnement (modifiable sur chaque lot). Doit être
-              strictement supérieur à 0.
+              Prix catalogue : prérempli à l&apos;approvisionnement. Si vous le modifiez lors d&apos;un appro, la
+              fiche produit est mise à jour automatiquement. Strictement positif.
             </p>
           </div>
           <DialogFooter className="gap-2">
@@ -418,9 +387,9 @@ function ProductImportDialog({
       errors.push("Catégorie invalide");
     }
     if (
-      row.defaultMarketSellingPrice === null ||
-      !Number.isFinite(row.defaultMarketSellingPrice) ||
-      row.defaultMarketSellingPrice <= 0
+      row.marketSellingPrice === null ||
+      !Number.isFinite(row.marketSellingPrice) ||
+      row.marketSellingPrice <= 0
     ) {
       errors.push("Prix marché invalide");
     }
@@ -494,13 +463,12 @@ function ProductImportDialog({
     const validRows = previewRows
       .filter((row) => row.valid && row.category)
       .map((row) => {
-        const resolved = resolveCatalogPriceForImport(null, row.defaultMarketSellingPrice);
-        if (!resolved) return null;
+        const m = parsePositiveMarketPrice(row.marketSellingPrice);
+        if (m == null) return null;
         return {
           name: row.name.trim(),
           category: row.category as string,
-          sellingPrice: resolved.sellingPrice,
-          defaultMarketSellingPrice: resolved.defaultMarketSellingPrice,
+          marketSellingPrice: m,
           image: (row.image ?? "").trim(),
         };
       })
@@ -706,24 +674,24 @@ function ProductImportDialog({
                             className={cn("h-8 text-right", fieldErrorClass)}
                             placeholder="0"
                             value={
-                              row.defaultMarketSellingPrice !== null &&
-                              Number.isFinite(row.defaultMarketSellingPrice)
-                                ? String(row.defaultMarketSellingPrice)
+                              row.marketSellingPrice !== null &&
+                              Number.isFinite(row.marketSellingPrice)
+                                ? String(row.marketSellingPrice)
                                 : ""
                             }
                             onChange={(e) => {
                               const raw = e.target.value;
-                              const defaultMarketSellingPrice =
+                              const marketSellingPrice =
                                 raw.trim() === "" || raw === "-" ? null : Number(raw);
                               setPreviewRows((prev) =>
                                 prev.map((r, rIdx) =>
                                   rIdx === idx
                                     ? validateImportRow({
                                         ...r,
-                                        defaultMarketSellingPrice:
-                                          defaultMarketSellingPrice !== null &&
-                                          Number.isFinite(defaultMarketSellingPrice)
-                                            ? defaultMarketSellingPrice
+                                        marketSellingPrice:
+                                          marketSellingPrice !== null &&
+                                          Number.isFinite(marketSellingPrice)
+                                            ? marketSellingPrice
                                             : null,
                                       })
                                     : r
@@ -1151,7 +1119,11 @@ export default function ProductsPage() {
       <ProductImportDialog
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
-        onImported={() => qc.invalidateQueries({ queryKey: ["products"] })}
+        onImported={() => {
+          qc.invalidateQueries({ queryKey: ["products"] });
+          qc.invalidateQueries({ queryKey: ["products-list"] });
+          qc.invalidateQueries({ queryKey: ["products-stock"] });
+        }}
       />
 
       <ProductCatalogExportDialog

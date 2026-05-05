@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { cn, formatCurrency, formatSalePaymentLabel } from "@/lib/utils";
+import { SALE_CHANGE_PICKUP_DEADLINE_DAYS } from "@/lib/app-settings";
 import type { ISale, SalePaymentMethod } from "@/types";
 
 export function CloseSaleDialog({
@@ -29,7 +30,7 @@ export function CloseSaleDialog({
   const [paymentMethod, setPaymentMethod] = useState<SalePaymentMethod>("CASH");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  /** Si monnaie à rendre : l’opérateur doit indiquer s’il l’a remise avant de confirmer la clôture */
+  /** Si monnaie à rendre : remise ou pas encore (les deux permettent de confirmer la clôture) */
   const [changeReturnedChoice, setChangeReturnedChoice] = useState<"yes" | "no" | null>(null);
 
   useEffect(() => {
@@ -57,10 +58,10 @@ export function CloseSaleDialog({
     if (!amountPaid || parseFloat(amountPaid) < sale.totalAmount) return;
     const paid = parseFloat(amountPaid);
     const changeDue = paid - sale.totalAmount;
-    if (changeDue > 0 && changeReturnedChoice !== "yes") return;
+    if (changeDue > 0 && changeReturnedChoice !== "yes" && changeReturnedChoice !== "no") return;
     setIsSubmitting(true);
 
-    const changeReturnedAck = changeDue <= 0 || changeReturnedChoice === "yes";
+    const changeReturnedAck = changeDue <= 0 ? true : changeReturnedChoice === "yes";
 
     const res = await fetch(`/api/sales/${sale._id}`, {
       method: "PUT",
@@ -103,7 +104,7 @@ export function CloseSaleDialog({
 
   const mustAcknowledgeChange = change !== null && change > 0;
   const canConfirmClose =
-    !mustAcknowledgeChange || changeReturnedChoice === "yes";
+    !mustAcknowledgeChange || changeReturnedChoice === "yes" || changeReturnedChoice === "no";
 
   return (
     <Dialog open={!!sale} onOpenChange={handleDialogOpenChange}>
@@ -226,7 +227,10 @@ export function CloseSaleDialog({
               <div className="space-y-2">
                 <Label className="text-sm">Avez-vous remis la monnaie au client ?</Label>
                 <p className="text-xs text-[#6B7280]">
-                  La clôture n&apos;est possible qu&apos;après confirmation de la remise de la monnaie.
+                  Dans tous les cas vous pouvez clôturer la vente. Si ce n&apos;est pas encore fait, le ticket indiquera
+                  que le reliquat n&apos;a pas été perçu et rappellera un délai de {SALE_CHANGE_PICKUP_DEADLINE_DAYS}{" "}
+                  jour{SALE_CHANGE_PICKUP_DEADLINE_DAYS > 1 ? "s" : ""} pour le retrait, après quoi il ne sera plus
+                  remboursable.
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -255,8 +259,9 @@ export function CloseSaleDialog({
                   </button>
                 </div>
                 {changeReturnedChoice === "no" ? (
-                  <p className="text-xs font-medium text-amber-800">
-                    Remettez d&apos;abord la monnaie au client, puis choisissez « Oui, monnaie remise » pour clôturer.
+                  <p className="text-xs font-medium text-amber-900">
+                    Le ticket comportera la mention légale sur le reliquat et le délai de{" "}
+                    {SALE_CHANGE_PICKUP_DEADLINE_DAYS} jour{SALE_CHANGE_PICKUP_DEADLINE_DAYS > 1 ? "s" : ""}.
                   </p>
                 ) : null}
               </div>

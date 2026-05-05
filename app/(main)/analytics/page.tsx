@@ -372,7 +372,7 @@ export default function AnalyticsPage() {
                         Produit
                       </th>
                       <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Prix unitaire SOBEBRA (FCFA)
+                        Prix unitaire marché (FCFA)
                       </th>
                       <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         Unités vendues

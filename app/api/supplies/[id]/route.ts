@@ -4,7 +4,6 @@ import { requireAuth } from "@/lib/auth-middleware";
 import { isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
-import { marketPriceAboveCatalogError } from "@/lib/product-market-price";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth(["directeur"]);
@@ -29,9 +28,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
   }
 
-  const priceErr = marketPriceAboveCatalogError(Number(product.sellingPrice), Number(marketSellingPrice));
-  if (priceErr) {
-    return NextResponse.json({ error: priceErr }, { status: 400 });
+  const m = Number(marketSellingPrice);
+  if (!Number.isFinite(m) || m <= 0) {
+    return NextResponse.json({ error: "Prix de vente marché invalide." }, { status: 400 });
   }
 
   const nextLotSize = Number(lotSize);
@@ -46,10 +45,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   supply.lotSize = Number(lotSize);
   supply.lotPrice = Number(lotPrice);
   supply.numberOfLots = Number(numberOfLots);
-  supply.marketSellingPrice = Number(marketSellingPrice);
+  supply.marketSellingPrice = m;
   await supply.save();
 
-  await supply.populate("product", "name image sellingPrice defaultMarketSellingPrice");
+  await Product.findByIdAndUpdate(productId, { marketSellingPrice: m });
+
+  await supply.populate("product", "name image marketSellingPrice");
   await supply.populate("createdBy", "firstName lastName");
 
   return NextResponse.json(supply);

@@ -22,7 +22,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { IRestaurantTable } from "@/types";
 
 async function fetchTables(): Promise<IRestaurantTable[]> {
@@ -34,6 +34,10 @@ async function fetchTables(): Promise<IRestaurantTable[]> {
 function nextTableNumber(tables: IRestaurantTable[]): number {
   if (tables.length === 0) return 1;
   return Math.max(...tables.map((t) => t.number)) + 1;
+}
+
+function readonlyFieldClassName() {
+  return "flex min-h-10 w-full items-center rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm";
 }
 
 function TableDialog({
@@ -49,39 +53,46 @@ function TableDialog({
   createSeed: { n: number } | null;
 }) {
   const qc = useQueryClient();
-  const [number, setNumber] = useState("");
-  const [name, setName] = useState("");
   const [capacity, setCapacity] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const displayNumber = table ? String(table.number) : createSeed != null ? String(createSeed.n) : "—";
+  const displayName =
+    table != null
+      ? (table.name?.trim() ? table.name : `Table ${table.number}`)
+      : createSeed != null
+        ? `TABLE-${createSeed.n}`
+        : "—";
 
   useEffect(() => {
     if (!open) return;
     if (table) {
-      setNumber(String(table.number));
-      setName(table.name ?? "");
       setCapacity(table.capacity != null ? String(table.capacity) : "");
-    } else if (createSeed) {
-      setNumber(String(createSeed.n));
-      setName(`TABLE-${createSeed.n}`);
+    } else {
       setCapacity("");
     }
   }, [table, open, createSeed]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const num = parseInt(number, 10);
     const cap = parseInt(capacity, 10);
-    if (Number.isNaN(num) || num < 1) {
-      toast({ variant: "destructive", title: "Erreur", description: "Numéro de table invalide." });
-      return;
-    }
-    if (!name.trim()) {
-      toast({ variant: "destructive", title: "Erreur", description: "Le nom de la table est requis." });
-      return;
-    }
     if (Number.isNaN(cap) || cap < 1) {
       toast({ variant: "destructive", title: "Erreur", description: "Capacité invalide (minimum 1)." });
       return;
+    }
+
+    let num: number;
+    let nameStr: string;
+    if (table) {
+      num = table.number;
+      nameStr = (table.name?.trim() ? table.name.trim() : `Table ${table.number}`);
+    } else {
+      if (!createSeed) {
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible de déterminer le numéro de table." });
+        return;
+      }
+      num = createSeed.n;
+      nameStr = `TABLE-${createSeed.n}`;
     }
 
     setIsSubmitting(true);
@@ -90,7 +101,7 @@ function TableDialog({
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number: num, name: name.trim(), capacity: cap }),
+      body: JSON.stringify({ number: num, name: nameStr, capacity: cap }),
     });
     setIsSubmitting(false);
     if (!res.ok) {
@@ -110,45 +121,35 @@ function TableDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{table ? "Modifier la table" : "Nouvelle table"}</DialogTitle>
+          <DialogTitle>{table ? "Modifier la table" : "Ajouter une table"}</DialogTitle>
+          {!table && (
+            <DialogDescription>
+              Le numéro et le nom sont attribués automatiquement. Indiquez uniquement la capacité (nombre de places).
+            </DialogDescription>
+          )}
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Numéro</Label>
-              <Input
-                type="number"
-                min={1}
-                value={number}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setNumber(v);
-                  if (!table) {
-                    const n = parseInt(v, 10);
-                    if (!Number.isNaN(n) && n >= 1) setName(`TABLE-${n}`);
-                  }
-                }}
-                required
-              />
+              <div className={readonlyFieldClassName()}>{displayNumber}</div>
             </div>
             <div className="space-y-1.5">
-              <Label>Capacité (places)</Label>
-              <Input
-                type="number"
-                min={1}
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
-                required
-              />
+              <Label>Nom</Label>
+              <div className={cn(readonlyFieldClassName(), "min-w-0")}>
+                <span className="truncate">{displayName}</span>
+              </div>
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Nom</Label>
+            <Label>Capacité (places)</Label>
             <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={table ? "Ex. Terrasse 1" : "TABLE-1"}
+              type="number"
+              min={1}
+              value={capacity}
+              onChange={(e) => setCapacity(e.target.value)}
               required
+              autoFocus
             />
           </div>
           <DialogFooter className="gap-2">

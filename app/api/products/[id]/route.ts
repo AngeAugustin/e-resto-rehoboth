@@ -5,7 +5,7 @@ import Product from "@/models/Product";
 import Supply from "@/models/Supply";
 import Sale from "@/models/Sale";
 import { isValidProductCategory } from "@/lib/product-categories";
-import { marketPriceAboveCatalogError, parsePriceBodyField, resolveCatalogPriceForImport } from "@/lib/product-market-price";
+import { parsePositiveMarketPrice } from "@/lib/product-market-price";
 import "@/models/User";
 import "@/models/Waitress";
 import "@/models/RestaurantTable";
@@ -60,7 +60,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   await connectDB();
   const { id } = await params;
   const body = await req.json();
-  const { name, image, sellingPrice, category, defaultMarketSellingPrice, isActive } = body;
+  const { name, image, category, marketSellingPrice, isActive } = body;
 
   if (category !== undefined && !isValidProductCategory(category)) {
     return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
@@ -81,41 +81,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (image !== undefined) updateDoc.image = image;
   if (isActive !== undefined) updateDoc.isActive = isActive;
 
-  const existingMarket = parsePriceBodyField(existing.defaultMarketSellingPrice ?? null);
-
-  if (defaultMarketSellingPrice !== undefined || sellingPrice !== undefined) {
-    const m =
-      defaultMarketSellingPrice !== undefined ? parsePriceBodyField(defaultMarketSellingPrice) : existingMarket;
-    const s =
-      sellingPrice !== undefined ? parsePriceBodyField(sellingPrice) : parsePriceBodyField(existing.sellingPrice);
-
-    if (defaultMarketSellingPrice !== undefined && (m == null || !Number.isFinite(m) || m <= 0)) {
+  if (marketSellingPrice !== undefined) {
+    const m = parsePositiveMarketPrice(marketSellingPrice);
+    if (m == null) {
       return NextResponse.json({ error: "Prix de vente marché invalide." }, { status: 400 });
     }
-
-    const resolved = resolveCatalogPriceForImport(s, m);
-    if (resolved) {
-      updateDoc.sellingPrice = resolved.sellingPrice;
-      if (defaultMarketSellingPrice !== undefined) {
-        updateDoc.defaultMarketSellingPrice = resolved.defaultMarketSellingPrice;
-      }
-    } else if (s != null && m != null && Number.isFinite(m) && m > 0) {
-      const err = marketPriceAboveCatalogError(s, m);
-      if (err) {
-        return NextResponse.json({ error: err }, { status: 400 });
-      }
-      updateDoc.sellingPrice = s;
-      if (defaultMarketSellingPrice !== undefined && m != null) {
-        updateDoc.defaultMarketSellingPrice = m;
-      }
-    } else if (s != null && (m == null || !Number.isFinite(m) || m <= 0)) {
-      updateDoc.sellingPrice = s;
-    } else {
-      return NextResponse.json(
-        { error: "Prix SOBEBRA ou prix de vente marché invalide." },
-        { status: 400 }
-      );
-    }
+    updateDoc.marketSellingPrice = m;
   }
 
   const product = await Product.findByIdAndUpdate(id, updateDoc, { new: true, runValidators: true });

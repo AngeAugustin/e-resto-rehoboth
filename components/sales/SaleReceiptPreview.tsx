@@ -9,7 +9,7 @@ import { exportElementToPdf } from "@/lib/receipt-pdf";
 import type { ISale } from "@/types";
 import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { toast } from "@/hooks/use-toast";
-import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
+import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME, SALE_CHANGE_PICKUP_DEADLINE_DAYS } from "@/lib/app-settings";
 import { saleTicketDisplayId } from "@/lib/sale-ticket-id";
 
 const VENUE_LINE = "Bar Restaurant";
@@ -178,11 +178,38 @@ export function SaleReceiptPreview({ sale }: { sale: ISale }) {
                 <span>Montant remis</span>
                 <span className="tabular-nums font-medium text-[#111]">{formatCurrency(sale.amountPaid)}</span>
               </div>
-              {sale.change !== undefined && sale.change > 0 && (
+              {sale.change !== undefined && sale.change > 0 && sale.changeReturnedAck !== false && (
                 <div className="flex justify-between border-t border-dashed border-[#0D0D0D]/20 pt-2 text-[11px] font-bold text-green-800">
-                  <span>Monnaie</span>
+                  <span>Monnaie rendue</span>
                   <span className="tabular-nums">{formatCurrency(sale.change)}</span>
                 </div>
+              )}
+              {sale.change !== undefined && sale.change > 0 && sale.changeReturnedAck === false && (
+                <>
+                  <div className="flex justify-between border-t border-dashed border-[#0D0D0D]/20 pt-2 text-[11px] font-bold text-amber-950">
+                    <span>Reliquat à rendre</span>
+                    <span className="tabular-nums">{formatCurrency(sale.change)}</span>
+                  </div>
+                  <div className="mt-2 rounded border border-amber-800/40 bg-amber-50 px-2 py-2 text-left text-[8.5px] font-medium leading-snug text-amber-950">
+                    <p className="mb-1 font-extrabold uppercase tracking-wide">Reliquat non encore perçu</p>
+                    <p>
+                      La monnaie ci-dessus n&apos;a pas encore été remise au client à la clôture de cette vente.{" "}
+                      {SALE_CHANGE_PICKUP_DEADLINE_DAYS === 1 ? (
+                        <>
+                          Le client dispose d&apos;<span className="font-extrabold">un</span> jour calendaire pour
+                          venir récupérer cette somme à l&apos;établissement.
+                        </>
+                      ) : (
+                        <>
+                          Le client dispose de{" "}
+                          <span className="font-extrabold">{SALE_CHANGE_PICKUP_DEADLINE_DAYS}</span> jours calendaires
+                          pour venir récupérer cette somme à l&apos;établissement.
+                        </>
+                      )}{" "}
+                      Passé ce délai, le reliquat n&apos;est plus remboursable.
+                    </p>
+                  </div>
+                </>
               )}
             </>
           )}

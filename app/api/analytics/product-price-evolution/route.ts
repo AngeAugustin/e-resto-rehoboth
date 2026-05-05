@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
   const product = await Product.findById(productId)
-    .select("name sellingPrice defaultMarketSellingPrice")
-    .lean<{ name: string; sellingPrice: number; defaultMarketSellingPrice?: number } | null>();
+    .select("name marketSellingPrice")
+    .lean<{ name: string; marketSellingPrice?: number } | null>();
   if (!product) {
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
   }
@@ -35,8 +35,10 @@ export async function GET(req: NextRequest) {
   const firstMonthStart = startOfMonth(subMonths(now, MONTHS - 1));
 
   let lastMarket: number | null =
-    product.defaultMarketSellingPrice != null && Number.isFinite(product.defaultMarketSellingPrice)
-      ? product.defaultMarketSellingPrice
+    product.marketSellingPrice != null &&
+    Number.isFinite(product.marketSellingPrice) &&
+    product.marketSellingPrice > 0
+      ? product.marketSellingPrice
       : null;
 
   let supplyIndex = 0;
@@ -52,7 +54,6 @@ export async function GET(req: NextRequest) {
     key: string;
     labelShort: string;
     labelFull: string;
-    sobebraPrice: number;
     marketPrice: number | null;
   }> = [];
 
@@ -77,15 +78,14 @@ export async function GET(req: NextRequest) {
       key,
       labelShort,
       labelFull,
-      sobebraPrice: product.sellingPrice,
       marketPrice: lastMarket,
     });
   }
 
   return NextResponse.json({
     productName: product.name,
-    sobebraNote:
-      "Le prix SOBEBRA affiché correspond au prix catalogue actuel du produit (les révisions passées ne sont pas conservées en historique).",
+    footnote:
+      "Pour chaque mois : dernier prix marché enregistré sur un approvisionnement, avec repli sur le prix catalogue produit si aucun appro n’a encore eu lieu sur la période affichée.",
     series,
   });
 }

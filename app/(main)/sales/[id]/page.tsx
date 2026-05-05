@@ -24,6 +24,7 @@ import { ProductThumb } from "@/components/sales/ProductThumb";
 import { CloseSaleDialog } from "@/components/sales/CloseSaleDialog";
 import { SaleReceiptPreview } from "@/components/sales/SaleReceiptPreview";
 import { toast } from "@/hooks/use-toast";
+import { SALE_CHANGE_PICKUP_DEADLINE_DAYS } from "@/lib/app-settings";
 import {
   Dialog,
   DialogContent,
@@ -269,13 +270,30 @@ export default function SaleDetailPage() {
                 <span className="shrink-0 text-[#6B7280]">Montant remis</span>
                 <span className="font-medium text-[#0D0D0D]">{formatCurrency(sale.amountPaid)}</span>
               </div>
-              {sale.change !== undefined && (
+              {sale.change !== undefined && sale.change > 0 && sale.changeReturnedAck !== false && (
                 <div className="flex justify-between items-center rounded-lg bg-green-50 px-4 py-3">
                   <span className="text-sm font-medium text-green-900 flex items-center gap-2">
                     <Coins className="w-4 h-4" />
-                    Monnaie rendue
+                    Monnaie rendue au client
                   </span>
                   <span className="font-bold text-green-800">{formatCurrency(sale.change)}</span>
+                </div>
+              )}
+              {sale.change !== undefined && sale.change > 0 && sale.changeReturnedAck === false && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                  <p className="font-semibold text-amber-900">Reliquat non encore perçu</p>
+                  <p className="mt-1 text-xs leading-relaxed text-amber-900/95">
+                    Montant à rendre au client : <span className="font-bold">{formatCurrency(sale.change)}</span>.{" "}
+                    {SALE_CHANGE_PICKUP_DEADLINE_DAYS === 1 ? (
+                      <>Le client dispose d&apos;un jour calendaire pour venir récupérer cette somme à l&apos;établissement.</>
+                    ) : (
+                      <>
+                        Le client dispose de {SALE_CHANGE_PICKUP_DEADLINE_DAYS} jours calendaires pour venir récupérer
+                        cette somme à l&apos;établissement.
+                      </>
+                    )}{" "}
+                    Passé ce délai, le reliquat n&apos;est plus remboursable (voir ticket).
+                  </p>
                 </div>
               )}
             </CardContent>

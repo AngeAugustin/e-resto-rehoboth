@@ -38,8 +38,7 @@ interface ProductWithStock {
   _id: string;
   name: string;
   image?: string;
-  sellingPrice: number;
-  /** Prix unitaire appliqué en vente (dernier appro) */
+  /** Prix unitaire marché (fiche produit) */
   marketSellingPrice: number;
   /** Coût d’achat unitaire du dernier appro */
   purchaseUnitCost: number;
