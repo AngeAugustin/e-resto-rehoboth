@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Sale from "@/models/Sale";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
+import CashSession from "@/models/CashSession";
 import { resolveSaleLinePricing } from "@/lib/sale-pricing";
 import {
   parseTableIdsFromRequestBody,
@@ -38,6 +39,19 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { waitressId, items } = body;
   const tableIds = parseTableIdsFromRequestBody(body);
+
+  const latestCashSession = await CashSession.findOne().sort({ createdAt: -1 }).select("status").lean<{
+    status: "OPEN" | "CLOSED";
+  } | null>();
+  if (!latestCashSession || latestCashSession.status !== "OPEN") {
+    return NextResponse.json(
+      {
+        error:
+          "Aucune session de caisse ouverte. Ouvrez d'abord la session du jour dans Caisse avant d'enregistrer une vente.",
+      },
+      { status: 409 }
+    );
+  }
 
   if (!waitressId || !tableIds || !items || items.length === 0) {
     return NextResponse.json(

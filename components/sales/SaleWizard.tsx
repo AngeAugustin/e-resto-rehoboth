@@ -114,6 +114,17 @@ export default function SaleWizard({
     queryFn: async () => (await fetch("/api/products/stock?activeOnly=1")).json(),
   });
 
+  const { data: cashSessionState, isLoading: cashSessionLoading } = useQuery<{
+    hasSession: boolean;
+    canSell: boolean;
+    latest?: { status: "OPEN" | "CLOSED"; name: string; createdAt: string };
+  }>({
+    queryKey: ["cash-session-latest-status"],
+    queryFn: async () => (await fetch("/api/cash-sessions/latest-status")).json(),
+    enabled: mode === "create",
+    staleTime: 20_000,
+  });
+
   useEffect(() => {
     hydratedRef.current = false;
   }, [editSaleId]);
@@ -153,8 +164,13 @@ export default function SaleWizard({
 
   const totalAmount = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const availableProducts = products?.filter((p) => p.stock > 0) ?? [];
+  const canCreateSaleFromCashSession = mode === "edit" ? true : Boolean(cashSessionState?.canSell);
+  /** Nouvelle vente : aucune interaction tant que la session n’est pas vérifiée ou n’est pas ouverte. */
+  const wizardInteractionsLocked =
+    mode === "create" && (cashSessionLoading || !Boolean(cashSessionState?.canSell));
 
   const addToCart = (product: ProductWithStock) => {
+    if (wizardInteractionsLocked) return;
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product._id);
       if (existing) return prev;
@@ -173,6 +189,7 @@ export default function SaleWizard({
   };
 
   const updateQty = (productId: string, delta: number) => {
+    if (wizardInteractionsLocked) return;
     setCart((prev) =>
       prev
         .map((i) => {
@@ -185,10 +202,12 @@ export default function SaleWizard({
   };
 
   const removeFromCart = (productId: string) => {
+    if (wizardInteractionsLocked) return;
     setCart((prev) => prev.filter((i) => i.productId !== productId));
   };
 
   const handleSubmit = async () => {
+    if (wizardInteractionsLocked) return;
     if (!waitressId || tableIds.length === 0 || cart.length === 0) return;
     setIsSubmitting(true);
 
@@ -296,6 +315,17 @@ export default function SaleWizard({
               : "Modifiez la serveuse, les tables ou les articles tant que la vente est en attente."}
           </p>
         </div>
+        {mode === "create" && cashSessionLoading && (
+          <div className="mt-3 rounded-lg border border-[#E5E5E5] bg-[#FAFAFA] px-3 py-2 text-sm text-[#6B7280]">
+            Vérification de la session de caisse…
+          </div>
+        )}
+        {mode === "create" && !cashSessionLoading && !canCreateSaleFromCashSession && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Aucune session de caisse ouverte. Ouvrez d&apos;abord la session du jour dans la page Caisse pour créer
+            une vente.
+          </div>
+        )}
       </div>
 
       <div className="mb-10 w-full flex flex-col items-center">
@@ -356,6 +386,7 @@ export default function SaleWizard({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
+        className={cn(wizardInteractionsLocked && "pointer-events-none opacity-[0.52] saturate-[0.65]")}
       >
         {step === 1 && (
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
@@ -373,7 +404,11 @@ export default function SaleWizard({
               </CardHeader>
               <CardContent>
                 <Label className="sr-only">Serveuse</Label>
-                <Select value={waitressId} onValueChange={setWaitressId}>
+                <Select
+                  value={waitressId}
+                  onValueChange={setWaitressId}
+                  disabled={wizardInteractionsLocked}
+                >
                   <SelectTrigger className="h-11">
                     <SelectValue placeholder="Sélectionner une serveuse" />
                   </SelectTrigger>
@@ -409,7 +444,7 @@ export default function SaleWizard({
                       <button
                         key={t._id}
                         type="button"
-                        disabled={occupied}
+                        disabled={occupied || wizardInteractionsLocked}
                         onClick={() =>
                           setTableIds((prev) =>
                             prev.includes(t._id) ? prev.filter((id) => id !== t._id) : [...prev, t._id]
@@ -458,7 +493,7 @@ export default function SaleWizard({
                         key={product._id}
                         type="button"
                         onClick={() => addToCart(product)}
-                        disabled={!!inCart}
+                        disabled={!!inCart || wizardInteractionsLocked}
                         className={cn(
                           "flex min-h-[5.25rem] items-center gap-3 rounded-xl border-2 p-3 text-left transition-all",
                           inCart
@@ -533,7 +568,8 @@ export default function SaleWizard({
                             <button
                               type="button"
                               onClick={() => updateQty(item.productId, -1)}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5F5F5] hover:bg-[#EBEBEB]"
+                              disabled={wizardInteractionsLocked}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5F5F5] hover:bg-[#EBEBEB] disabled:pointer-events-none disabled:opacity-40"
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
@@ -541,8 +577,8 @@ export default function SaleWizard({
                             <button
                               type="button"
                               onClick={() => updateQty(item.productId, 1)}
-                              disabled={item.quantity >= item.maxStock}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5F5F5] hover:bg-[#EBEBEB] disabled:opacity-40"
+                              disabled={wizardInteractionsLocked || item.quantity >= item.maxStock}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5F5F5] hover:bg-[#EBEBEB] disabled:pointer-events-none disabled:opacity-40"
                             >
                               <Plus className="w-3.5 h-3.5" />
                             </button>
@@ -553,7 +589,8 @@ export default function SaleWizard({
                           <button
                             type="button"
                             onClick={() => removeFromCart(item.productId)}
-                            className="p-1.5 text-[#9CA3AF] hover:text-red-500 shrink-0"
+                            disabled={wizardInteractionsLocked}
+                            className="p-1.5 text-[#9CA3AF] hover:text-red-500 shrink-0 disabled:pointer-events-none disabled:opacity-40"
                             aria-label="Retirer"
                           >
                             <X className="w-4 h-4" />
@@ -619,10 +656,19 @@ export default function SaleWizard({
         )}
       </motion.div>
 
-      <div className="mt-10 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3 pt-6 border-t border-[#E5E5E5]">
+      <div
+        className={cn(
+          "mt-10 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3 pt-6 border-t border-[#E5E5E5]",
+          wizardInteractionsLocked && "pointer-events-none opacity-[0.52] saturate-[0.65]"
+        )}
+      >
         <div>
           {step > 1 && (
-            <Button variant="outline" onClick={() => setStep((s) => (s > 1 ? ((s - 1) as Step) : s))}>
+            <Button
+              variant="outline"
+              disabled={wizardInteractionsLocked}
+              onClick={() => setStep((s) => (s > 1 ? ((s - 1) as Step) : s))}
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour
             </Button>
@@ -632,7 +678,7 @@ export default function SaleWizard({
           {step === 1 && (
             <Button
               onClick={() => setStep(2)}
-              disabled={!waitressId || tableIds.length === 0}
+              disabled={wizardInteractionsLocked || !waitressId || tableIds.length === 0}
               className="w-full sm:w-auto min-w-[160px]"
             >
               Continuer
@@ -642,7 +688,7 @@ export default function SaleWizard({
           {step === 2 && (
             <Button
               onClick={() => setStep(3)}
-              disabled={cart.length === 0}
+              disabled={wizardInteractionsLocked || cart.length === 0}
               className="w-full sm:w-auto min-w-[160px]"
             >
               Récapitulatif
@@ -653,7 +699,7 @@ export default function SaleWizard({
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || wizardInteractionsLocked}
               size="lg"
               className="w-full min-w-[220px] bg-primary text-base font-semibold text-primary-foreground shadow-md hover:bg-primary/90 sm:w-auto"
             >

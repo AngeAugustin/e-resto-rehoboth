@@ -96,6 +96,21 @@ export interface IRestaurantTable {
   occupiedByPendingSaleId?: string | null;
 }
 
+export type CashSessionStatus = "OPEN" | "CLOSED";
+
+export interface ICashSession {
+  _id: string;
+  name: string;
+  sessionDate: string;
+  openingFloat: number;
+  /** Renseigné à la clôture : fond de caisse repris ou non */
+  openingFloatRecovered?: boolean;
+  status: CashSessionStatus;
+  closedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DashboardStats {
   todayRevenue: number;
   todaySalesCount: number;
