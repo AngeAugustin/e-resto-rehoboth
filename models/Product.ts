@@ -9,6 +9,10 @@ export interface IProductDocument extends Document {
   isActive: boolean;
   /** Prix de vente unitaire marché (référence catalogue, affichage et ventes). */
   marketSellingPrice: number;
+  /** Quantité d’unités dans un casier / pack standard (référence appro & import). */
+  quantiteStandardPack?: number;
+  /** Prix d’achat d’un casier standard en FCFA (référence appro & import). */
+  prixCasier?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +49,24 @@ const ProductSchema = new Schema<IProductDocument>(
       type: Boolean,
       default: true,
     },
+    quantiteStandardPack: {
+      type: Number,
+      validate: {
+        validator(v: number | null | undefined) {
+          return v == null || (Number.isFinite(v) && Number.isInteger(v) && v >= 1);
+        },
+        message: "La quantité standard pack doit être un entier ≥ 1",
+      },
+    },
+    prixCasier: {
+      type: Number,
+      validate: {
+        validator(v: number | null | undefined) {
+          return v == null || (Number.isFinite(v) && v >= 0);
+        },
+        message: "Le prix casier doit être un nombre ≥ 0",
+      },
+    },
   },
   { timestamps: true }
 );
@@ -80,6 +102,32 @@ if (existingModel) {
       isActive: {
         type: Boolean,
         default: true,
+      },
+    });
+  }
+  if (!existingModel.schema.path("quantiteStandardPack")) {
+    existingModel.schema.add({
+      quantiteStandardPack: {
+        type: Number,
+        validate: {
+          validator(v: number | null | undefined) {
+            return v == null || (Number.isFinite(v) && Number.isInteger(v) && v >= 1);
+          },
+          message: "La quantité standard pack doit être un entier ≥ 1",
+        },
+      },
+    });
+  }
+  if (!existingModel.schema.path("prixCasier")) {
+    existingModel.schema.add({
+      prixCasier: {
+        type: Number,
+        validate: {
+          validator(v: number | null | undefined) {
+            return v == null || (Number.isFinite(v) && v >= 0);
+          },
+          message: "Le prix casier doit être un nombre ≥ 0",
+        },
       },
     });
   }

@@ -11,7 +11,7 @@ export async function GET() {
 
   await connectDB();
   const supplies = await Supply.find()
-    .populate("product", "name image marketSellingPrice")
+    .populate("product", "name image marketSellingPrice quantiteStandardPack prixCasier")
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 });
 
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
           marketSellingPrice: item.marketSellingPrice,
         });
 
-        await supply.populate("product", "name image marketSellingPrice");
+        await supply.populate("product", "name image marketSellingPrice quantiteStandardPack prixCasier");
         await supply.populate("createdBy", "firstName lastName");
         created.push(supply.toJSON());
       }
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
 
   await Product.findByIdAndUpdate(productId, { marketSellingPrice: m });
 
-  await supply.populate("product", "name image marketSellingPrice");
+  await supply.populate("product", "name image marketSellingPrice quantiteStandardPack prixCasier");
   await supply.populate("createdBy", "firstName lastName");
 
   return NextResponse.json(supply, { status: 201 });

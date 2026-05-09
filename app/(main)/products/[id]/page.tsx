@@ -21,6 +21,8 @@ interface ProductDetail {
     name: string;
     image?: string;
     marketSellingPrice: number;
+    quantiteStandardPack?: number;
+    prixCasier?: number;
     stock: number;
   };
   supplies: Array<{
@@ -152,6 +154,33 @@ export default function ProductDetailPage() {
                   </h1>
                   <p className="mt-1 text-2xl font-bold text-[#0D0D0D] sm:text-3xl">{formatCurrency(displayPrice)}</p>
                   <p className="mt-1 text-sm text-[#6B7280]">Prix de vente unitaire marché (fiche produit)</p>
+                  {(product.quantiteStandardPack != null &&
+                    Number.isInteger(product.quantiteStandardPack) &&
+                    product.quantiteStandardPack >= 1) ||
+                  (product.prixCasier != null && Number.isFinite(product.prixCasier)) ? (
+                    <p className="mt-2 text-sm text-[#6B7280]">
+                      {product.quantiteStandardPack != null &&
+                      Number.isInteger(product.quantiteStandardPack) &&
+                      product.quantiteStandardPack >= 1 ? (
+                        <>
+                          <span className="font-medium text-[#374151]">Quantité standard pack :</span>{" "}
+                          {product.quantiteStandardPack} unité{product.quantiteStandardPack > 1 ? "s" : ""} / casier
+                        </>
+                      ) : null}
+                      {product.quantiteStandardPack != null &&
+                      product.quantiteStandardPack >= 1 &&
+                      product.prixCasier != null &&
+                      Number.isFinite(product.prixCasier) ? (
+                        <span className="mx-1.5 text-[#D1D5DB]">·</span>
+                      ) : null}
+                      {product.prixCasier != null && Number.isFinite(product.prixCasier) ? (
+                        <>
+                          <span className="font-medium text-[#374151]">Prix casier :</span>{" "}
+                          {formatCurrency(product.prixCasier)}
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 

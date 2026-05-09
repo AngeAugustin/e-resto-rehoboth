@@ -4,12 +4,15 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Product from "@/models/Product";
 import { isValidProductCategory } from "@/lib/product-categories";
 import { parsePositiveMarketPrice } from "@/lib/product-market-price";
+import { parseQuantiteStandardPack, parsePrixCasier } from "@/lib/product-pack-fields";
 
 type ImportRowPayload = {
   name: string;
   category: string;
   marketSellingPrice: number | string | null;
   image?: string;
+  quantiteStandardPack?: number | string | null;
+  prixCasier?: number | string | null;
 };
 
 export async function POST(req: NextRequest) {
@@ -28,11 +31,15 @@ export async function POST(req: NextRequest) {
       const name = String(row.name ?? "").trim();
       const market = parsePositiveMarketPrice(row.marketSellingPrice);
       if (market == null) return null;
+      const qs = parseQuantiteStandardPack(row.quantiteStandardPack);
+      const pc = parsePrixCasier(row.prixCasier);
       return {
         name,
         category: row.category,
         marketSellingPrice: market,
         image: typeof row.image === "string" ? row.image.trim() : "",
+        ...(qs !== undefined ? { quantiteStandardPack: qs } : {}),
+        ...(pc !== undefined ? { prixCasier: pc } : {}),
       };
     })
     .filter(

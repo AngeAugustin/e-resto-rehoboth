@@ -19,6 +19,10 @@ export interface IProduct {
   image?: string;
   /** Prix de vente unitaire marché (fiche produit) */
   marketSellingPrice: number;
+  /** Unités par casier standard (fiche & import) */
+  quantiteStandardPack?: number;
+  /** Prix du casier en FCFA (fiche & import) */
+  prixCasier?: number;
   stock: number;
   createdAt: string;
   updatedAt: string;

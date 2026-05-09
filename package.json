@@ -47,6 +47,9 @@
     "zod": "^3.23.8",
     "zustand": "^5.0.1"
   },
+  "overrides": {
+    "rimraf": "3.0.2"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

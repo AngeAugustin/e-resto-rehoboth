@@ -6,6 +6,7 @@ import Supply from "@/models/Supply";
 import Sale from "@/models/Sale";
 import { isValidProductCategory } from "@/lib/product-categories";
 import { parsePositiveMarketPrice } from "@/lib/product-market-price";
+import { parseQuantiteStandardPack, parsePrixCasier } from "@/lib/product-pack-fields";
 import "@/models/User";
 import "@/models/Waitress";
 import "@/models/RestaurantTable";
@@ -60,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   await connectDB();
   const { id } = await params;
   const body = await req.json();
-  const { name, image, category, marketSellingPrice, isActive } = body;
+  const { name, image, category, marketSellingPrice, isActive, quantiteStandardPack, prixCasier } = body;
 
   if (category !== undefined && !isValidProductCategory(category)) {
     return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
@@ -76,6 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const updateDoc: Record<string, unknown> = {};
+  const unsetDoc: Record<string, 1> = {};
   if (name) updateDoc.name = name.trim();
   if (category !== undefined) updateDoc.category = category;
   if (image !== undefined) updateDoc.image = image;
@@ -89,7 +91,40 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     updateDoc.marketSellingPrice = m;
   }
 
-  const product = await Product.findByIdAndUpdate(id, updateDoc, { new: true, runValidators: true });
+  if (quantiteStandardPack !== undefined) {
+    if (quantiteStandardPack === null || quantiteStandardPack === "") {
+      unsetDoc.quantiteStandardPack = 1;
+    } else {
+      const qs = parseQuantiteStandardPack(quantiteStandardPack);
+      if (qs === undefined) {
+        return NextResponse.json({ error: "Quantité standard pack invalide (entier ≥ 1)." }, { status: 400 });
+      }
+      updateDoc.quantiteStandardPack = qs;
+    }
+  }
+
+  if (prixCasier !== undefined) {
+    if (prixCasier === null || prixCasier === "") {
+      unsetDoc.prixCasier = 1;
+    } else {
+      const pc = parsePrixCasier(prixCasier);
+      if (pc === undefined) {
+        return NextResponse.json({ error: "Prix casier invalide (nombre ≥ 0)." }, { status: 400 });
+      }
+      updateDoc.prixCasier = pc;
+    }
+  }
+
+  const hasSet = Object.keys(updateDoc).length > 0;
+  const hasUnset = Object.keys(unsetDoc).length > 0;
+  const mongoUpdate: Record<string, unknown> =
+    hasSet && hasUnset
+      ? { $set: updateDoc, $unset: unsetDoc }
+      : hasUnset
+        ? { $unset: unsetDoc }
+        : updateDoc;
+
+  const product = await Product.findByIdAndUpdate(id, mongoUpdate, { new: true, runValidators: true });
 
   if (!product) {
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });

@@ -43,6 +43,8 @@ interface ProductOption {
   name: string;
   image?: string;
   marketSellingPrice: number;
+  quantiteStandardPack?: number;
+  prixCasier?: number;
 }
 
 async function fetchSupplies(): Promise<ISupply[]> {
@@ -139,6 +141,45 @@ function productIdFromSupply(s: ISupply): string {
   if (typeof p === "string") return p;
   if (p && typeof p === "object" && "_id" in p) return String((p as { _id: string })._id);
   return "";
+}
+
+/** Préremplit taille / prix casier depuis la fiche produit (import ou saisie manuelle). */
+function lotDefaultsFromProductCatalog(p: Pick<ProductOption, "quantiteStandardPack" | "prixCasier">): Pick<
+  SupplyForm,
+  "lotSize" | "lotSizeMode" | "lotPrice"
+> {
+  const lotPrice =
+    p.prixCasier != null && Number.isFinite(p.prixCasier) && p.prixCasier >= 0 ? String(p.prixCasier) : "";
+  const q = p.quantiteStandardPack;
+  if (q == null || !Number.isFinite(q) || !Number.isInteger(q) || q < 1) {
+    return { lotSize: "", lotSizeMode: "preset", lotPrice };
+  }
+  if (isStandardSupplyLotSize(q)) {
+    return { lotSize: String(q), lotSizeMode: "preset", lotPrice };
+  }
+  return { lotSize: String(q), lotSizeMode: "custom", lotPrice };
+}
+
+function ProductCatalogPackHint({ product }: { product: ProductOption }) {
+  const qOk =
+    product.quantiteStandardPack != null &&
+    Number.isInteger(product.quantiteStandardPack) &&
+    product.quantiteStandardPack >= 1;
+  const pOk = product.prixCasier != null && Number.isFinite(product.prixCasier);
+  if (!qOk && !pOk) return null;
+  return (
+    <p className="mt-1.5 text-[11px] leading-snug text-[#6B7280]">
+      Réf. fiche produit —{" "}
+      {qOk ? (
+        <>
+          {product.quantiteStandardPack} unité{product.quantiteStandardPack! > 1 ? "s" : ""} / casier
+        </>
+      ) : null}
+      {qOk && pOk ? " · " : null}
+      {pOk ? <>{formatCurrency(product.prixCasier!)} / casier</> : null}
+      <span className="text-[#9CA3AF]"> (prérempli ci-dessous, modifiable)</span>
+    </p>
+  );
 }
 
 /** Aperçu image dans le modal appro : remplit la colonne (hauteur des champs), recouvre en object-cover */
@@ -307,7 +348,8 @@ function SupplyDialog({
                       p?.marketSellingPrice != null && Number.isFinite(p.marketSellingPrice)
                         ? String(p.marketSellingPrice)
                         : "";
-                    setForm({ ...form, productId: v, marketSellingPrice: pref });
+                    const pack = p ? lotDefaultsFromProductCatalog(p) : { lotSize: "", lotSizeMode: "preset" as const, lotPrice: "" };
+                    setForm({ ...form, productId: v, marketSellingPrice: pref, ...pack });
                   }}
                 >
                   <SelectTrigger>
@@ -321,6 +363,10 @@ function SupplyDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {(() => {
+                  const p = products?.find((x) => x._id === form.productId);
+                  return p ? <ProductCatalogPackHint product={p} /> : null;
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -495,7 +541,8 @@ function SupplyDialog({
                                   p?.marketSellingPrice != null && Number.isFinite(p.marketSellingPrice)
                                     ? String(p.marketSellingPrice)
                                     : "";
-                                updateLine(line.id, { productId: v, marketSellingPrice: pref });
+                                const pack = p ? lotDefaultsFromProductCatalog(p) : { lotSize: "", lotSizeMode: "preset" as const, lotPrice: "" };
+                                updateLine(line.id, { productId: v, marketSellingPrice: pref, ...pack });
                               }}
                             >
                               <SelectTrigger>
@@ -509,6 +556,7 @@ function SupplyDialog({
                                 ))}
                               </SelectContent>
                             </Select>
+                            {selectedProduct ? <ProductCatalogPackHint product={selectedProduct} /> : null}
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">

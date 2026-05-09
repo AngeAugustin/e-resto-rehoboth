@@ -50,7 +50,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   await Product.findByIdAndUpdate(productId, { marketSellingPrice: m });
 
-  await supply.populate("product", "name image marketSellingPrice");
+  await supply.populate("product", "name image marketSellingPrice quantiteStandardPack prixCasier");
   await supply.populate("createdBy", "firstName lastName");
 
   return NextResponse.json(supply);

@@ -50,6 +50,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { DEFAULT_PRODUCT_CATEGORY, PRODUCT_CATEGORIES } from "@/lib/product-categories";
 import { DEFAULT_LOW_STOCK_ALERT_THRESHOLD } from "@/lib/app-settings";
 import { parsePositiveMarketPrice } from "@/lib/product-market-price";
+import { parseQuantiteStandardPack, parsePrixCasier } from "@/lib/product-pack-fields";
 import type { ProductCatalogExportRow } from "@/lib/product-catalog-export";
 import { ProductCatalogExportDialog } from "@/components/products/ProductCatalogExportDialog";
 
@@ -59,6 +60,8 @@ interface ProductWithStock {
   category?: string;
   image?: string;
   marketSellingPrice: number;
+  quantiteStandardPack?: number;
+  prixCasier?: number;
   stock: number;
   purchaseUnitCost?: number;
   /** Absent en base legacy = actif */
@@ -76,6 +79,8 @@ interface ProductImportPreviewRow {
   name: string;
   category: string | null;
   marketSellingPrice: number | null;
+  quantiteStandardPack: number | null;
+  prixCasier: number | null;
   image: string;
   valid: boolean;
   error?: string;
@@ -103,6 +108,8 @@ interface ProductFormData {
   category: string;
   image: string;
   marketSellingPrice: string;
+  quantiteStandardPack: string;
+  prixCasier: string;
 }
 
 function ProductFormDialog({
@@ -121,6 +128,8 @@ function ProductFormDialog({
     category: DEFAULT_PRODUCT_CATEGORY,
     image: "",
     marketSellingPrice: "",
+    quantiteStandardPack: "",
+    prixCasier: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -135,6 +144,16 @@ function ProductFormDialog({
       marketSellingPrice:
         product?.marketSellingPrice != null && Number.isFinite(product.marketSellingPrice)
           ? String(product.marketSellingPrice)
+          : "",
+      quantiteStandardPack:
+        product?.quantiteStandardPack != null &&
+        Number.isFinite(product.quantiteStandardPack) &&
+        Number.isInteger(product.quantiteStandardPack)
+          ? String(product.quantiteStandardPack)
+          : "",
+      prixCasier:
+        product?.prixCasier != null && Number.isFinite(product.prixCasier)
+          ? String(product.prixCasier)
           : "",
     });
     setImageFile(null);
@@ -228,6 +247,30 @@ function ProductFormDialog({
         return;
       }
       body.marketSellingPrice = m;
+      const qsNew = parseQuantiteStandardPack(
+        form.quantiteStandardPack.trim() === "" ? undefined : form.quantiteStandardPack
+      );
+      if (form.quantiteStandardPack.trim() !== "" && qsNew === undefined) {
+        setIsSubmitting(false);
+        toast({
+          variant: "destructive",
+          title: "Quantité standard pack",
+          description: "Indiquez un entier ≥ 1 ou laissez vide.",
+        });
+        return;
+      }
+      if (qsNew !== undefined) body.quantiteStandardPack = qsNew;
+      const pcNew = parsePrixCasier(form.prixCasier.trim() === "" ? undefined : form.prixCasier);
+      if (form.prixCasier.trim() !== "" && pcNew === undefined) {
+        setIsSubmitting(false);
+        toast({
+          variant: "destructive",
+          title: "Prix casier",
+          description: "Indiquez un nombre ≥ 0 ou laissez vide.",
+        });
+        return;
+      }
+      if (pcNew !== undefined) body.prixCasier = pcNew;
     } else {
       if (trimmedMarket !== "") {
         const m = parsePositiveMarketPrice(trimmedMarket);
@@ -241,6 +284,36 @@ function ProductFormDialog({
           return;
         }
         body.marketSellingPrice = m;
+      }
+      if (form.quantiteStandardPack.trim() === "") {
+        body.quantiteStandardPack = null;
+      } else {
+        const qsE = parseQuantiteStandardPack(form.quantiteStandardPack);
+        if (qsE === undefined) {
+          setIsSubmitting(false);
+          toast({
+            variant: "destructive",
+            title: "Quantité standard pack",
+            description: "Indiquez un entier ≥ 1 ou vide pour effacer.",
+          });
+          return;
+        }
+        body.quantiteStandardPack = qsE;
+      }
+      if (form.prixCasier.trim() === "") {
+        body.prixCasier = null;
+      } else {
+        const pcE = parsePrixCasier(form.prixCasier);
+        if (pcE === undefined) {
+          setIsSubmitting(false);
+          toast({
+            variant: "destructive",
+            title: "Prix casier",
+            description: "Indiquez un nombre ≥ 0 ou vide pour effacer.",
+          });
+          return;
+        }
+        body.prixCasier = pcE;
       }
     }
 
@@ -350,6 +423,32 @@ function ProductFormDialog({
               fiche produit est mise à jour automatiquement. Strictement positif.
             </p>
           </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Quantité standard pack (unités / casier)</Label>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                placeholder="Ex. 24"
+                value={form.quantiteStandardPack}
+                onChange={(e) => setForm({ ...form, quantiteStandardPack: e.target.value })}
+              />
+              <p className="text-[11px] text-[#9CA3AF]">Optionnel. Préremplit la taille du casier à l&apos;appro.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Prix casier (FCFA)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                placeholder="Ex. 12000"
+                value={form.prixCasier}
+                onChange={(e) => setForm({ ...form, prixCasier: e.target.value })}
+              />
+              <p className="text-[11px] text-[#9CA3AF]">Optionnel. Préremplit le prix du casier à l&apos;appro.</p>
+            </div>
+          </div>
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
@@ -392,6 +491,20 @@ function ProductImportDialog({
       row.marketSellingPrice <= 0
     ) {
       errors.push("Prix marché invalide");
+    }
+    if (row.quantiteStandardPack !== null) {
+      if (
+        !Number.isFinite(row.quantiteStandardPack) ||
+        !Number.isInteger(row.quantiteStandardPack) ||
+        row.quantiteStandardPack < 1
+      ) {
+        errors.push("Quantité standard pack invalide");
+      }
+    }
+    if (row.prixCasier !== null) {
+      if (!Number.isFinite(row.prixCasier) || row.prixCasier < 0) {
+        errors.push("Prix casier invalide");
+      }
     }
     return {
       ...row,
@@ -470,6 +583,8 @@ function ProductImportDialog({
           category: row.category as string,
           marketSellingPrice: m,
           image: (row.image ?? "").trim(),
+          ...(row.quantiteStandardPack != null ? { quantiteStandardPack: row.quantiteStandardPack } : {}),
+          ...(row.prixCasier != null ? { prixCasier: row.prixCasier } : {}),
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
@@ -519,8 +634,9 @@ function ProductImportDialog({
         <DialogHeader>
           <DialogTitle>Importer des produits</DialogTitle>
           <DialogDescription>
-            Importez un fichier Excel : Produit, Catégorie et prix marché sont requis ; le lien image est optionnel.
-            Vous pouvez corriger le tableau avant validation.
+            Import Excel : Produit, Catégorie et prix marché requis ; lien image optionnel. Colonnes optionnelles{" "}
+            <span className="font-mono">Quantité_standard_pack</span> et <span className="font-mono">Prix_casier</span>
+            . Vous pouvez corriger le tableau avant validation.
           </DialogDescription>
         </DialogHeader>
 
@@ -575,7 +691,9 @@ function ProductImportDialog({
                       <th className="text-left px-3 py-2 w-16">Ligne</th>
                       <th className="text-left px-3 py-2">Produit</th>
                       <th className="text-left px-3 py-2">Catégorie</th>
-                      <th className="text-right px-3 py-2 w-32">Prix marché</th>
+                      <th className="text-right px-3 py-2 w-28">Prix marché</th>
+                      <th className="text-right px-3 py-2 w-24">Qté pack</th>
+                      <th className="text-right px-3 py-2 w-28">Prix casier</th>
                       <th className="text-left px-3 py-2">Lien image</th>
                     </tr>
                   </thead>
@@ -692,6 +810,72 @@ function ProductImportDialog({
                                           marketSellingPrice !== null &&
                                           Number.isFinite(marketSellingPrice)
                                             ? marketSellingPrice
+                                            : null,
+                                      })
+                                    : r
+                                )
+                              );
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-2 w-28">
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            className={cn("h-8 text-right", fieldErrorClass)}
+                            placeholder="—"
+                            value={
+                              row.quantiteStandardPack !== null &&
+                              Number.isFinite(row.quantiteStandardPack)
+                                ? String(row.quantiteStandardPack)
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const quantiteStandardPack =
+                                raw.trim() === "" || raw === "-" ? null : Number(raw);
+                              setPreviewRows((prev) =>
+                                prev.map((r, rIdx) =>
+                                  rIdx === idx
+                                    ? validateImportRow({
+                                        ...r,
+                                        quantiteStandardPack:
+                                          quantiteStandardPack !== null &&
+                                          Number.isFinite(quantiteStandardPack)
+                                            ? quantiteStandardPack
+                                            : null,
+                                      })
+                                    : r
+                                )
+                              );
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-2 w-28">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="any"
+                            className={cn("h-8 text-right", fieldErrorClass)}
+                            placeholder="—"
+                            value={
+                              row.prixCasier !== null && Number.isFinite(row.prixCasier)
+                                ? String(row.prixCasier)
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const prixCasier =
+                                raw.trim() === "" || raw === "-" ? null : Number(raw);
+                              setPreviewRows((prev) =>
+                                prev.map((r, rIdx) =>
+                                  rIdx === idx
+                                    ? validateImportRow({
+                                        ...r,
+                                        prixCasier:
+                                          prixCasier !== null && Number.isFinite(prixCasier)
+                                            ? prixCasier
                                             : null,
                                       })
                                     : r

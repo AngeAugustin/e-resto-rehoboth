@@ -6,18 +6,69 @@ export interface ProductImportRow {
   name: string;
   category: ProductCategory | null;
   marketSellingPrice: number | null;
+  /** Optionnel : colonne Quantité_standard_pack */
+  quantiteStandardPack: number | null;
+  /** Optionnel : colonne Prix_casier */
+  prixCasier: number | null;
   image: string;
   valid: boolean;
   error?: string;
 }
 
+/** Normalise les en-têtes Excel (casse, accents, `_` / espaces). Ex. `Quantité_standard_pack` → `quantitestandardpack`, `Prix_casier` → `prixcasier`. */
 function normalizeHeader(header: string): string {
-  return header
+  return String(header ?? "")
+    .replace(/\ufeff/g, "")
+    .replace(/[\u200b-\u200d]/g, "")
+    .replace(/\u00a0/g, " ")
+    .trim()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "")
     .trim();
+}
+
+/** Colonne optionnelle : en-tête attendu dans le fichier `Quantité_standard_pack` (ou équivalent accentué / espacé). */
+function findQuantiteStandardPackColumnIndex(headers: string[]): number {
+  const i = headers.findIndex((h) => h === "quantitestandardpack");
+  if (i >= 0) return i;
+  return headers.findIndex(
+    (h) =>
+      h.includes("quantitestandardpack") ||
+      (h.includes("quantite") && h.includes("standard") && h.includes("pack"))
+  );
+}
+
+/** Colonne optionnelle : en-tête attendu `Prix_casier`. */
+function findPrixCasierColumnIndex(headers: string[]): number {
+  const i = headers.findIndex((h) => h === "prixcasier");
+  if (i >= 0) return i;
+  return headers.findIndex((h) => h.includes("prixcasier"));
+}
+
+type OptionalPackQty = number | null | "invalid";
+
+function parseOptionalPackQuantity(value: unknown): OptionalPackQty {
+  if (value == null || value === "") return null;
+  if (typeof value === "boolean") return "invalid";
+  const raw = String(value).trim();
+  if (raw === "") return null;
+  const n = typeof value === "number" ? value : Number(raw.replace(",", "."));
+  if (!Number.isFinite(n)) return "invalid";
+  const int = Math.round(n);
+  if (Math.abs(n - int) > 1e-9 || int < 1) return "invalid";
+  return int;
+}
+
+function parseOptionalPrixCasier(value: unknown): number | null | "invalid" {
+  if (value == null || value === "") return null;
+  if (typeof value === "boolean") return "invalid";
+  const raw = String(value).trim();
+  if (raw === "") return null;
+  const p = parsePrice(value);
+  if (p === null) return "invalid";
+  return p;
 }
 
 function parsePrice(value: unknown): number | null {
@@ -76,6 +127,8 @@ function parseExcelRows(buffer: Buffer): ProductImportRow[] {
   const categoryIndex = headers.findIndex((h) => h === "categorie" || h.includes("categorie"));
   const marketPriceIndex = findMarketPriceColumnIndex(headers);
   const imageIndex = headers.findIndex((h) => h.includes("lienimage") || h === "image" || h.includes("lien"));
+  const qtyPackIndex = findQuantiteStandardPackColumnIndex(headers);
+  const prixCasierIndex = findPrixCasierColumnIndex(headers);
 
   return rows.slice(1).map((cellsRaw, idx) => {
     const cells = (cellsRaw as unknown[]) ?? [];
@@ -85,11 +138,24 @@ function parseExcelRows(buffer: Buffer): ProductImportRow[] {
     const marketSellingPrice = marketPriceIndex >= 0 ? parsePrice(cells[marketPriceIndex]) : null;
     const image = imageIndex >= 0 ? parseImageUrl(cells[imageIndex]) : "";
 
+    let quantiteStandardPack: number | null = null;
+    let prixCasier: number | null = null;
+
     const errors: string[] = [];
     if (!name) errors.push("Nom manquant");
     if (!category) errors.push("Catégorie invalide");
     if (marketSellingPrice === null || !Number.isFinite(marketSellingPrice) || marketSellingPrice <= 0) {
       errors.push("Prix marché invalide");
+    }
+    if (qtyPackIndex >= 0) {
+      const q = parseOptionalPackQuantity(cells[qtyPackIndex]);
+      if (q === "invalid") errors.push("Quantité standard pack invalide");
+      else quantiteStandardPack = q;
+    }
+    if (prixCasierIndex >= 0) {
+      const pc = parseOptionalPrixCasier(cells[prixCasierIndex]);
+      if (pc === "invalid") errors.push("Prix casier invalide");
+      else prixCasier = pc;
     }
 
     return {
@@ -97,6 +163,8 @@ function parseExcelRows(buffer: Buffer): ProductImportRow[] {
       name,
       category,
       marketSellingPrice,
+      quantiteStandardPack,
+      prixCasier,
       image,
       valid: errors.length === 0,
       ...(errors.length > 0 && { error: errors.join(" · ") }),
@@ -174,6 +242,8 @@ function parsePdfRows(text: string): ProductImportRow[] {
       name,
       category,
       marketSellingPrice,
+      quantiteStandardPack: null,
+      prixCasier: null,
       image,
       valid: errors.length === 0,
       ...(errors.length > 0 && { error: errors.join(" · ") }),
