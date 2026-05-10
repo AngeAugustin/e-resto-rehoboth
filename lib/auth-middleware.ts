@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "./auth";
 import { NextResponse } from "next/server";
+import { getCachedServerSession } from "@/lib/get-session";
 import type { Session } from "next-auth";
 
 interface AuthResult {
@@ -11,7 +10,7 @@ interface AuthResult {
 export async function requireAuth(roles?: string[]): Promise<AuthResult> {
   let session: Session | null = null;
   try {
-    session = await getServerSession(authOptions);
+    session = await getCachedServerSession();
   } catch {
     return {
       error: NextResponse.json(

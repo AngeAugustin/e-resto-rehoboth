@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -12,7 +12,7 @@ import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import type { ISale } from "@/types";
+import type { ISale, SalesListResponse } from "@/types";
 import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { CloseSaleDialog } from "@/components/sales/CloseSaleDialog";
 import { toast } from "@/hooks/use-toast";
@@ -25,26 +25,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-async function fetchSales(): Promise<ISale[]> {
-  const res = await fetch("/api/sales");
+async function fetchSalesPage(page: number, pageSize: number): Promise<SalesListResponse> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  const res = await fetch(`/api/sales?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to fetch");
-  return res.json();
+  return (await res.json()) as SalesListResponse;
 }
 
 // ----------- Main Page -----------
 export default function SalesPage() {
   const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
   const qc = useQueryClient();
-  const { data: sales, isLoading } = useQuery({
-    queryKey: ["sales"],
-    queryFn: fetchSales,
-    refetchInterval: 30000,
-  });
-
   const [saleToClose, setSaleToClose] = useState<ISale | null>(null);
   const [saleToCancel, setSaleToCancel] = useState<ISale | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["sales", currentPage, pageSize],
+    queryFn: () => fetchSalesPage(currentPage, pageSize),
+    placeholderData: keepPreviousData,
+    refetchInterval: 30000,
+  });
 
   const cancelSale = useMutation({
     mutationFn: async (id: string) => {
@@ -64,12 +66,15 @@ export default function SalesPage() {
     },
   });
 
-  const totalRevenue = sales?.filter((s) => s.status === "COMPLETED").reduce((sum, s) => sum + s.totalAmount, 0) ?? 0;
-  const totalSales = sales?.length ?? 0;
-  const pendingSales = sales?.filter((s) => s.status === "PENDING").length ?? 0;
-  const completedSales = sales?.filter((s) => s.status === "COMPLETED").length ?? 0;
-  const paginatedSales = (sales ?? []).slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalPages = Math.max(1, Math.ceil((sales?.length ?? 0) / pageSize));
+  const stats = data?.stats;
+  const totalRevenue = stats?.totalRevenue ?? 0;
+  const totalSales = stats?.totalSales ?? 0;
+  const pendingSales = stats?.pendingSales ?? 0;
+  const completedSales = stats?.completedSales ?? 0;
+  const listItems = data?.items ?? [];
+  const totalCount = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const listLoading = isLoading && !data;
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
@@ -96,7 +101,7 @@ export default function SalesPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {isLoading ? (
+        {listLoading ? (
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
           <>
@@ -132,8 +137,8 @@ export default function SalesPage() {
         </div>
         <PremiumTableShell
           title="Liste des ventes"
-          isLoading={isLoading}
-          empty={!isLoading && (sales?.length === 0)}
+          isLoading={listLoading}
+          empty={!listLoading && totalCount === 0}
           emptyMessage="Aucune vente enregistrée"
           skeletonRows={6}
           tableMinWidthClass="min-w-[960px]"
@@ -154,7 +159,7 @@ export default function SalesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100/90">
                 <AnimatePresence>
-                  {paginatedSales.map((sale) => {
+                  {listItems.map((sale) => {
                     const waitress = sale.waitress as { firstName: string; lastName: string };
                     return (
                       <motion.tr
@@ -261,7 +266,7 @@ export default function SalesPage() {
         className="mt-6"
         currentPage={currentPage}
         pageSize={pageSize}
-        totalItems={sales?.length ?? 0}
+        totalItems={totalCount}
         onPageChange={setCurrentPage}
       />
 

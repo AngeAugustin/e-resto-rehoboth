@@ -80,6 +80,20 @@ export interface ISale {
   updatedAt: string;
 }
 
+/** Réponse paginée `GET /api/sales`. */
+export interface SalesListStats {
+  totalRevenue: number;
+  totalSales: number;
+  pendingSales: number;
+  completedSales: number;
+}
+
+export interface SalesListResponse {
+  items: ISale[];
+  total: number;
+  stats: SalesListStats;
+}
+
 export interface IWaitress {
   _id: string;
   firstName: string;

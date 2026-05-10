@@ -34,6 +34,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Cette session est déjà ouverte." }, { status: 400 });
     }
 
+    const newest = await CashSession.findOne()
+      .sort({ createdAt: -1, _id: -1 })
+      .select("_id")
+      .lean();
+    if (!newest || String(newest._id) !== String(cashSession._id)) {
+      return NextResponse.json(
+        {
+          error:
+            "Seule la dernière session en date peut être relancée. Les sessions clôturées plus anciennes ne le peuvent plus.",
+        },
+        { status: 400 }
+      );
+    }
+
     const active = await CashSession.findOne({ status: "OPEN", _id: { $ne: id } }).select("_id").lean();
     if (active) {
       return NextResponse.json(

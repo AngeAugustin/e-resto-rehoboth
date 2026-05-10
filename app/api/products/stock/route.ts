@@ -20,7 +20,10 @@ export async function GET(req: NextRequest) {
   const productFilter = activeOnly ? { isActive: { $ne: false } } : {};
 
   const [products, suppliedRows, soldRows, latestSupplyByProduct] = await Promise.all([
-    Product.find(productFilter).sort({ name: 1 }).lean(),
+    Product.find(productFilter)
+      .select("name category image marketSellingPrice quantiteStandardPack prixCasier isActive createdAt updatedAt")
+      .sort({ name: 1 })
+      .lean(),
     Supply.aggregate<{ _id: Types.ObjectId; total: number }>([
       { $group: { _id: "$product", total: { $sum: "$totalUnits" } } },
     ]),

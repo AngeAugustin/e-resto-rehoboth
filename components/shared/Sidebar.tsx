@@ -121,7 +121,12 @@ export function Sidebar() {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
 
           return (
-            <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined}>
+            <Link
+              key={item.href}
+              href={item.href}
+              prefetch={false}
+              title={collapsed ? item.label : undefined}
+            >
               <motion.div
                 whileHover={collapsed ? undefined : { x: 2 }}
                 className={cn(
@@ -161,6 +166,7 @@ export function Sidebar() {
         >
           <Link
             href="/profile"
+            prefetch={false}
             className={cn(
               "flex min-w-0 items-center gap-2 rounded-lg py-1 transition-colors hover:bg-white/10",
               collapsed ? "justify-center px-1" : "flex-1 px-1"

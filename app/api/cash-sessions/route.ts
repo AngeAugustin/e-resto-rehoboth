@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import CashSession from "@/models/CashSession";
 import Sale from "@/models/Sale";
+import Supply from "@/models/Supply";
 import { buildCashSessionName } from "@/lib/cash-session";
 
 export async function GET() {
@@ -27,25 +28,19 @@ export async function GET() {
         .select("totalAmount paymentMethod")
         .lean<Array<{ totalAmount?: number; paymentMethod?: "CASH" | "MOBILE_MONEY" }>>();
 
-      const salesCount = sales.length;
-      const revenue = sales.reduce((sum, sale) => sum + Number(sale.totalAmount ?? 0), 0);
-      const cashRevenue = sales.reduce(
-        (sum, sale) => sum + (sale.paymentMethod === "CASH" ? Number(sale.totalAmount ?? 0) : 0),
-        0
-      );
-      const mobileMoneyRevenue = sales.reduce(
-        (sum, sale) => sum + (sale.paymentMethod === "MOBILE_MONEY" ? Number(sale.totalAmount ?? 0) : 0),
-        0
-      );
+      const totalSales = sales.reduce((sum, sale) => sum + Number(sale.totalAmount ?? 0), 0);
+
+      const [suppliesAgg] = await Supply.aggregate<{ total: number }>([
+        { $match: { createdAt: { $gte: start, $lte: end } } },
+        { $group: { _id: null, total: { $sum: "$totalCost" } } },
+      ]);
+      const totalSupplies = Number(suppliesAgg?.total ?? 0);
 
       return {
         ...s,
         financialSummary: {
-          salesCount,
-          revenue,
-          cashRevenue,
-          mobileMoneyRevenue,
-          expectedCashOnHand: Number(s.openingFloat ?? 0) + cashRevenue,
+          totalSales,
+          totalSupplies,
         },
       };
     })

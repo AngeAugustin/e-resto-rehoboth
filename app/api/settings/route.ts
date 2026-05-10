@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import AppSetting from "@/models/AppSetting";
@@ -7,6 +8,7 @@ import {
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SOLUTION_NAME,
   GLOBAL_SETTINGS_KEY,
+  PRIMARY_THEME_CACHE_TAG,
   isAllowedPrimaryColor,
   isAllowedLogoUrl,
   normalizeHexColor,
@@ -131,6 +133,10 @@ export async function PUT(req: NextRequest) {
     { $set: updates, $setOnInsert: { key: GLOBAL_SETTINGS_KEY } },
     { new: true, upsert: true, strict: false }
   ).lean();
+
+  if (Object.prototype.hasOwnProperty.call(updates, "primaryColor")) {
+    revalidateTag(PRIMARY_THEME_CACHE_TAG);
+  }
 
   return NextResponse.json(toClientPayload(settings ?? {}));
 }

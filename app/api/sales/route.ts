@@ -15,20 +15,80 @@ import "@/models/Waitress";
 import "@/models/RestaurantTable";
 import "@/models/User";
 
-export async function GET() {
+const SALES_LIST_MAX_PAGE_SIZE = 100;
+const SALES_LIST_DEFAULT_PAGE_SIZE = 10;
+
+function parseSalesListQuery(url: URL): { page: number; pageSize: number } {
+  const rawPage = url.searchParams.get("page");
+  const rawSize = url.searchParams.get("pageSize");
+  let page = Number.parseInt(rawPage ?? "1", 10);
+  let pageSize = Number.parseInt(rawSize ?? String(SALES_LIST_DEFAULT_PAGE_SIZE), 10);
+  if (!Number.isFinite(page) || page < 1) page = 1;
+  if (!Number.isFinite(pageSize) || pageSize < 1) pageSize = SALES_LIST_DEFAULT_PAGE_SIZE;
+  if (pageSize > SALES_LIST_MAX_PAGE_SIZE) pageSize = SALES_LIST_MAX_PAGE_SIZE;
+  return { page, pageSize };
+}
+
+export async function GET(req: NextRequest) {
   const { error } = await requireAuth();
   if (error) return error;
 
-  await connectDB();
-  const sales = await Sale.find()
-    .populate("waitress", "firstName lastName")
-    .populate("tables", "number name")
-    .populate("table", "number name")
-    .populate("items.product", "name image marketSellingPrice")
-    .populate("createdBy", "firstName lastName")
-    .sort({ createdAt: -1 });
+  const { page, pageSize } = parseSalesListQuery(req.nextUrl);
+  const skip = (page - 1) * pageSize;
 
-  return NextResponse.json(sales);
+  await connectDB();
+
+  const [statsAgg, sales] = await Promise.all([
+    Sale.aggregate<{
+      totalSales: number;
+      totalRevenue: number;
+      pendingSales: number;
+      completedSales: number;
+    }>([
+      {
+        $group: {
+          _id: null,
+          totalSales: { $sum: 1 },
+          totalRevenue: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "COMPLETED"] }, "$totalAmount", 0],
+            },
+          },
+          pendingSales: {
+            $sum: { $cond: [{ $eq: ["$status", "PENDING"] }, 1, 0] },
+          },
+          completedSales: {
+            $sum: { $cond: [{ $eq: ["$status", "COMPLETED"] }, 1, 0] },
+          },
+        },
+      },
+    ]),
+    Sale.find()
+      .populate("waitress", "firstName lastName")
+      .populate("tables", "number name")
+      .populate("table", "number name")
+      .populate("items.product", "name image marketSellingPrice")
+      .populate("createdBy", "firstName lastName")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize)
+      .lean(),
+  ]);
+
+  const s = statsAgg[0];
+  const total = s?.totalSales ?? 0;
+  const stats = {
+    totalRevenue: s?.totalRevenue ?? 0,
+    totalSales: total,
+    pendingSales: s?.pendingSales ?? 0,
+    completedSales: s?.completedSales ?? 0,
+  };
+
+  return NextResponse.json({
+    items: sales,
+    total,
+    stats,
+  });
 }
 
 export async function POST(req: NextRequest) {

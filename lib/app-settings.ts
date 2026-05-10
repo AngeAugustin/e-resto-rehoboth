@@ -1,4 +1,7 @@
 export const GLOBAL_SETTINGS_KEY = "global";
+
+/** Tag `next/cache` pour invalider le thème SSR quand la couleur primaire change. */
+export const PRIMARY_THEME_CACHE_TAG = "app-settings-primary-theme";
 export const DEFAULT_SOLUTION_NAME = "Rehoboth - Fleur de Dieu";
 
 export const PRIMARY_COLOR_PALETTE = [

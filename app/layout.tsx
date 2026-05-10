@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { unstable_cache } from "next/cache";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +8,7 @@ import {
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SOLUTION_NAME,
   GLOBAL_SETTINGS_KEY,
+  PRIMARY_THEME_CACHE_TAG,
   hexToHslTriplet,
   normalizeHexColor,
 } from "@/lib/app-settings";
@@ -41,7 +43,12 @@ export const metadata: Metadata = {
 
 type ThemeCssVars = React.CSSProperties & Record<`--${string}`, string>;
 
-async function getInitialThemeVars(): Promise<ThemeCssVars> {
+const defaultThemeCssVars: ThemeCssVars = {
+  "--primary": "0 0% 5%",
+  "--ring": "0 0% 5%",
+};
+
+async function loadPrimaryThemeCssVarsFromDB(): Promise<ThemeCssVars> {
   try {
     await connectDB();
     const settings = await AppSetting.findOne({ key: GLOBAL_SETTINGS_KEY })
@@ -54,16 +61,17 @@ async function getInitialThemeVars(): Promise<ThemeCssVars> {
       "--ring": hslTriplet,
     };
   } catch {
-    // Fallback to default black theme when settings are unavailable.
-    return {
-      "--primary": "0 0% 5%",
-      "--ring": "0 0% 5%",
-    };
+    return defaultThemeCssVars;
   }
 }
 
+const getCachedPrimaryThemeCssVars = unstable_cache(loadPrimaryThemeCssVarsFromDB, ["root-layout-primary-theme"], {
+  revalidate: 3600,
+  tags: [PRIMARY_THEME_CACHE_TAG],
+});
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const initialThemeVars = await getInitialThemeVars();
+  const initialThemeVars = await getCachedPrimaryThemeCssVars();
   return (
     <html lang="fr" className={aptos.variable} style={initialThemeVars}>
       <body className="font-sans antialiased bg-white">
