@@ -9,12 +9,12 @@ export const PRODUCT_CATEGORIES = [
   "Boisson gazeuse",
 ] as const;
 
-export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+export type ProductCategory = string;
 
 export const DEFAULT_PRODUCT_CATEGORY: ProductCategory = PRODUCT_CATEGORIES[0];
 
 export function isValidProductCategory(input: unknown): input is ProductCategory {
-  return typeof input === "string" && PRODUCT_CATEGORIES.includes(input as ProductCategory);
+  return typeof input === "string" && input.trim().length > 0;
 }
 
 function normalizeTextValue(input: string): string {
@@ -26,7 +26,7 @@ function normalizeTextValue(input: string): string {
     .trim();
 }
 
-const CATEGORY_ALIAS_TO_CANONICAL: Record<string, ProductCategory> = {
+const CATEGORY_ALIAS_TO_CANONICAL: Record<string, string> = {
   eau: "Eau",
   eaux: "Eau",
   biere: "Bière",
@@ -47,7 +47,8 @@ const CATEGORY_ALIAS_TO_CANONICAL: Record<string, ProductCategory> = {
 
 export function normalizeImportedCategory(input: unknown): ProductCategory | null {
   if (typeof input !== "string") return null;
-  if (isValidProductCategory(input)) return input;
-  const normalized = normalizeTextValue(input);
-  return CATEGORY_ALIAS_TO_CANONICAL[normalized] ?? null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const normalized = normalizeTextValue(trimmed);
+  return CATEGORY_ALIAS_TO_CANONICAL[normalized] ?? trimmed;
 }

@@ -112,14 +112,27 @@ interface ProductFormData {
   prixCasier: string;
 }
 
+const NEW_CATEGORY_VALUE = "__new_category__";
+
+function buildCategoryOptions(products?: ProductWithStock[]): string[] {
+  const merged = new Set<string>(PRODUCT_CATEGORIES);
+  for (const p of products ?? []) {
+    const c = p.category?.trim();
+    if (c) merged.add(c);
+  }
+  return Array.from(merged).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+}
+
 function ProductFormDialog({
   open,
   onClose,
   product,
+  categoryOptions,
 }: {
   open: boolean;
   onClose: () => void;
   product?: ProductWithStock;
+  categoryOptions: string[];
 }) {
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,12 +147,14 @@ function ProductFormDialog({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   useEffect(() => {
     if (!open) return;
+    const initialCategory = product?.category ?? DEFAULT_PRODUCT_CATEGORY;
     setForm({
       name: product?.name ?? "",
-      category: product?.category ?? DEFAULT_PRODUCT_CATEGORY,
+      category: initialCategory,
       image: product?.image ?? "",
       marketSellingPrice:
         product?.marketSellingPrice != null && Number.isFinite(product.marketSellingPrice)
@@ -157,12 +172,13 @@ function ProductFormDialog({
           : "",
     });
     setImageFile(null);
+    setNewCategoryName(categoryOptions.includes(initialCategory) ? "" : initialCategory);
     setPreviewUrl((prev) => {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
       return null;
     });
     if (fileInputRef.current) fileInputRef.current.value = "";
-  }, [open, product]);
+  }, [open, product, categoryOptions]);
 
   const revokePreview = (url: string | null) => {
     if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
@@ -210,6 +226,17 @@ function ProductFormDialog({
     e.preventDefault();
     setIsSubmitting(true);
 
+    const category = form.category.trim();
+    if (!category) {
+      setIsSubmitting(false);
+      toast({
+        variant: "destructive",
+        title: "Catégorie requise",
+        description: "Choisissez une catégorie ou ajoutez-en une nouvelle.",
+      });
+      return;
+    }
+
     let imageUrl = form.image;
     if (imageFile) {
       const fd = new FormData();
@@ -231,7 +258,7 @@ function ProductFormDialog({
     const trimmedMarket = form.marketSellingPrice.trim();
     const body: Record<string, unknown> = {
       name: form.name,
-      category: form.category,
+      category,
       image: imageUrl,
     };
 
@@ -344,6 +371,7 @@ function ProductFormDialog({
   };
 
   const displaySrc = previewUrl ?? (form.image ? form.image : null);
+  const selectedCategoryValue = categoryOptions.includes(form.category) ? form.category : NEW_CATEGORY_VALUE;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -363,18 +391,47 @@ function ProductFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Catégorie</Label>
-            <Select value={form.category} onValueChange={(value) => setForm({ ...form, category: value })}>
+            <Select
+              value={selectedCategoryValue}
+              onValueChange={(value) => {
+                if (value === NEW_CATEGORY_VALUE) {
+                  const fallback = !categoryOptions.includes(form.category) ? form.category : newCategoryName;
+                  setNewCategoryName(fallback);
+                  setForm({ ...form, category: fallback });
+                  return;
+                }
+                setForm({ ...form, category: value });
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Choisir une catégorie" />
               </SelectTrigger>
               <SelectContent>
-                {PRODUCT_CATEGORIES.map((category) => (
+                {categoryOptions.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>
                 ))}
+                <SelectItem
+                  value={NEW_CATEGORY_VALUE}
+                  className="font-semibold text-primary focus:text-primary data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary"
+                >
+                  + Nouvelle catégorie
+                </SelectItem>
               </SelectContent>
             </Select>
+            {selectedCategoryValue === NEW_CATEGORY_VALUE ? (
+              <Input
+                placeholder="Ex: Spiritueux premium"
+                value={newCategoryName}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setNewCategoryName(next);
+                  setForm({ ...form, category: next });
+                }}
+                required
+              />
+            ) : null}
           </div>
           <div className="space-y-1.5">
             <Label>Image du produit</Label>
@@ -467,10 +524,12 @@ function ProductImportDialog({
   open,
   onClose,
   onImported,
+  categoryOptions,
 }: {
   open: boolean;
   onClose: () => void;
   onImported: () => void;
+  categoryOptions: string[];
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ProductImportPreviewResult | null>(null);
@@ -482,7 +541,7 @@ function ProductImportDialog({
   const validateImportRow = (row: ProductImportPreviewRow): ProductImportPreviewRow => {
     const errors: string[] = [];
     if (!row.name.trim()) errors.push("Nom manquant");
-    if (!row.category || !PRODUCT_CATEGORIES.includes(row.category as (typeof PRODUCT_CATEGORIES)[number])) {
+    if (!row.category || row.category.trim() === "") {
       errors.push("Catégorie invalide");
     }
     if (
@@ -578,9 +637,11 @@ function ProductImportDialog({
       .map((row) => {
         const m = parsePositiveMarketPrice(row.marketSellingPrice);
         if (m == null) return null;
+        const category = (row.category ?? "").trim();
+        if (!category) return null;
         return {
           name: row.name.trim(),
-          category: row.category as string,
+          category,
           marketSellingPrice: m,
           image: (row.image ?? "").trim(),
           ...(row.quantiteStandardPack != null ? { quantiteStandardPack: row.quantiteStandardPack } : {}),
@@ -699,11 +760,10 @@ function ProductImportDialog({
                   </thead>
                   <tbody>
                     {previewRows.map((row, idx) => {
-                      const categorySelectValue =
-                        row.category &&
-                        PRODUCT_CATEGORIES.includes(row.category as (typeof PRODUCT_CATEGORIES)[number])
-                          ? row.category
-                          : "__none__";
+                      const trimmedCategory = row.category?.trim() ?? "";
+                      const categorySelectValue = trimmedCategory !== "" ? trimmedCategory : "__none__";
+                      const hasCustomCategory =
+                        trimmedCategory !== "" && !categoryOptions.includes(trimmedCategory);
                       const invalidRow = !row.valid;
                       const fieldErrorClass = invalidRow
                         ? "border-red-400 bg-red-50/50 focus-visible:border-red-500 focus-visible:ring-red-200/40"
@@ -776,11 +836,14 @@ function ProductImportDialog({
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__none__">Choisir une catégorie</SelectItem>
-                              {PRODUCT_CATEGORIES.map((category) => (
+                              {categoryOptions.map((category) => (
                                 <SelectItem key={category} value={category}>
                                   {category}
                                 </SelectItem>
                               ))}
+                              {hasCustomCategory ? (
+                                <SelectItem value={trimmedCategory}>{trimmedCategory}</SelectItem>
+                              ) : null}
                             </SelectContent>
                           </Select>
                         </td>
@@ -1016,6 +1079,7 @@ export default function ProductsPage() {
 
   const minPrice = priceMinFilter.trim() === "" ? null : Number(priceMinFilter);
   const maxPrice = priceMaxFilter.trim() === "" ? null : Number(priceMaxFilter);
+  const categoryOptions = buildCategoryOptions(products);
 
   const filtered =
     products?.filter((p) => {
@@ -1097,7 +1161,7 @@ export default function ProductsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Toutes les catégories</SelectItem>
-            {PRODUCT_CATEGORIES.map((category) => (
+            {categoryOptions.map((category) => (
               <SelectItem key={category} value={category}>
                 {category}
               </SelectItem>
@@ -1299,10 +1363,12 @@ export default function ProductsPage() {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         product={editProduct}
+        categoryOptions={categoryOptions}
       />
       <ProductImportDialog
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
+        categoryOptions={categoryOptions}
         onImported={() => {
           qc.invalidateQueries({ queryKey: ["products"] });
           qc.invalidateQueries({ queryKey: ["products-list"] });

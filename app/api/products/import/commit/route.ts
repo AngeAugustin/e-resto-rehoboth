@@ -29,13 +29,14 @@ export async function POST(req: NextRequest) {
   const sanitized = rows
     .map((row) => {
       const name = String(row.name ?? "").trim();
+      const category = String(row.category ?? "").trim();
       const market = parsePositiveMarketPrice(row.marketSellingPrice);
       if (market == null) return null;
       const qs = parseQuantiteStandardPack(row.quantiteStandardPack);
       const pc = parsePrixCasier(row.prixCasier);
       return {
         name,
-        category: row.category,
+        category,
         marketSellingPrice: market,
         image: typeof row.image === "string" ? row.image.trim() : "",
         ...(qs !== undefined ? { quantiteStandardPack: qs } : {}),

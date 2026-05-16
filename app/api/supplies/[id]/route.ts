@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
-import { isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
+import { isStandardSupplyLotSize, isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
 
@@ -14,7 +14,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const { productId, lotSize, lotPrice, numberOfLots, marketSellingPrice } = body;
 
-  if (!productId || lotSize === undefined || lotPrice === undefined || numberOfLots === undefined || marketSellingPrice === undefined) {
+  if (!productId || lotSize === undefined || lotPrice === undefined || marketSellingPrice === undefined) {
     return NextResponse.json({ error: "Tous les champs sont requis" }, { status: 400 });
   }
 
@@ -40,11 +40,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       { status: 400 }
     );
   }
+  const nextNumberOfLots = isStandardSupplyLotSize(nextLotSize) ? Number(numberOfLots) : 1;
+  if (!Number.isFinite(nextNumberOfLots) || nextNumberOfLots < 1) {
+    return NextResponse.json({ error: "Nombre de casiers invalide." }, { status: 400 });
+  }
 
   supply.product = productId;
   supply.lotSize = Number(lotSize);
   supply.lotPrice = Number(lotPrice);
-  supply.numberOfLots = Number(numberOfLots);
+  supply.numberOfLots = nextNumberOfLots;
   supply.marketSellingPrice = m;
   await supply.save();
 

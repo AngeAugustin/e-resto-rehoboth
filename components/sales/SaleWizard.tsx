@@ -28,6 +28,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { IWaitress, IRestaurantTable, ISale, ISaleItem } from "@/types";
@@ -84,6 +93,9 @@ export default function SaleWizard({
   const [tableIds, setTableIds] = useState<string[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addTableOpen, setAddTableOpen] = useState(false);
+  const [newTableCapacity, setNewTableCapacity] = useState("");
+  const [isCreatingTable, setIsCreatingTable] = useState(false);
 
   const {
     data: sale,
@@ -262,6 +274,8 @@ export default function SaleWizard({
   };
 
   const tableLabel = () => formatTableIdsWithCatalog(tableIds, tables);
+  const nextTableNumber = tables?.length ? Math.max(...tables.map((t) => t.number)) + 1 : 1;
+  const nextTableName = `TABLE-${nextTableNumber}`;
 
   /** Table réservée par une autre vente en attente (pas la vente en cours d’édition) */
   const isTableOccupiedByOtherSale = (t: IRestaurantTable) => {
@@ -269,6 +283,57 @@ export default function SaleWizard({
     if (occ == null) return false;
     if (mode === "edit" && editSaleId && occ === editSaleId) return false;
     return true;
+  };
+
+  const openAddTableDialog = () => {
+    if (wizardInteractionsLocked) return;
+    setNewTableCapacity("");
+    setAddTableOpen(true);
+  };
+
+  const handleAddTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (wizardInteractionsLocked || isCreatingTable) return;
+
+    const cap = Number.parseInt(newTableCapacity, 10);
+    if (Number.isNaN(cap) || cap < 1) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Capacité invalide (minimum 1).",
+      });
+      return;
+    }
+
+    setIsCreatingTable(true);
+    const res = await fetch("/api/tables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number: nextTableNumber, name: nextTableName, capacity: cap }),
+    });
+    setIsCreatingTable(false);
+
+    const payload = (await res.json().catch(() => null)) as (IRestaurantTable & { error?: string }) | null;
+    if (!res.ok) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: payload?.error ?? "Impossible d'ajouter la table",
+      });
+      return;
+    }
+
+    if (payload?._id) {
+      setTableIds((prev) => (prev.includes(payload._id) ? prev : [...prev, payload._id]));
+    }
+    setAddTableOpen(false);
+    setNewTableCapacity("");
+    qc.invalidateQueries({ queryKey: ["tables"] });
+    toast({
+      variant: "success",
+      title: "Table ajoutée",
+      description: `${nextTableName} a été créée et sélectionnée.`,
+    });
   };
 
   if (mode === "edit") {
@@ -389,8 +454,8 @@ export default function SaleWizard({
         className={cn(wizardInteractionsLocked && "pointer-events-none opacity-[0.52] saturate-[0.65]")}
       >
         {step === 1 && (
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
-            <Card className="border-[#E5E5E5] shadow-sm">
+          <div className="grid gap-6 md:grid-cols-5 max-w-6xl">
+            <Card className="border-[#E5E5E5] shadow-sm md:col-span-2">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
@@ -423,7 +488,7 @@ export default function SaleWizard({
               </CardContent>
             </Card>
 
-            <Card className="border-[#E5E5E5] shadow-sm">
+            <Card className="border-[#E5E5E5] shadow-sm md:col-span-3">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
@@ -434,6 +499,16 @@ export default function SaleWizard({
                     <CardDescription>Sélectionnez une ou plusieurs tables</CardDescription>
                   </div>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={openAddTableDialog}
+                  disabled={wizardInteractionsLocked}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Ajouter une table
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -714,6 +789,52 @@ export default function SaleWizard({
           )}
         </div>
       </div>
+
+      <Dialog open={addTableOpen} onOpenChange={setAddTableOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajouter une table</DialogTitle>
+            <DialogDescription>
+              Le numéro et le nom sont attribués automatiquement. Indiquez uniquement la capacité.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddTable} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Numéro</Label>
+                <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm">
+                  {nextTableNumber}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nom</Label>
+                <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm">
+                  <span className="truncate">{nextTableName}</span>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Capacité (places)</Label>
+              <Input
+                type="number"
+                min={1}
+                required
+                autoFocus
+                value={newTableCapacity}
+                onChange={(e) => setNewTableCapacity(e.target.value)}
+              />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setAddTableOpen(false)} disabled={isCreatingTable}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={isCreatingTable}>
+                {isCreatingTable ? "Ajout..." : "Ajouter"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

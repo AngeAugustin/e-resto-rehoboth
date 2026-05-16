@@ -31,7 +31,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur", "gerant"]);
   if (error) return error;
 
   await connectDB();

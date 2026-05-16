@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
-import { DEFAULT_PRODUCT_CATEGORY, PRODUCT_CATEGORIES } from "@/lib/product-categories";
+import { DEFAULT_PRODUCT_CATEGORY } from "@/lib/product-categories";
 
 export interface IProductDocument extends Document {
   name: string;
@@ -27,7 +27,6 @@ const ProductSchema = new Schema<IProductDocument>(
     },
     category: {
       type: String,
-      enum: PRODUCT_CATEGORIES,
       default: DEFAULT_PRODUCT_CATEGORY,
       trim: true,
     },
@@ -74,11 +73,29 @@ const ProductSchema = new Schema<IProductDocument>(
 const existingModel = mongoose.models.Product as Model<IProductDocument> | undefined;
 
 if (existingModel) {
+  const categoryPath = existingModel.schema.path("category") as
+    | {
+        enumValues?: string[];
+        options?: { enum?: unknown };
+        validators?: Array<{ type?: string }>;
+      }
+    | undefined;
+  if (categoryPath) {
+    if (Array.isArray(categoryPath.enumValues)) {
+      categoryPath.enumValues = [];
+    }
+    if (categoryPath.options && "enum" in categoryPath.options) {
+      delete categoryPath.options.enum;
+    }
+    if (Array.isArray(categoryPath.validators)) {
+      categoryPath.validators = categoryPath.validators.filter((v) => v.type !== "enum");
+    }
+  }
+
   if (!existingModel.schema.path("category")) {
     existingModel.schema.add({
       category: {
         type: String,
-        enum: PRODUCT_CATEGORIES,
         default: DEFAULT_PRODUCT_CATEGORY,
         trim: true,
       },

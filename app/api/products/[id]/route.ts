@@ -62,8 +62,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const body = await req.json();
   const { name, image, category, marketSellingPrice, isActive, quantiteStandardPack, prixCasier } = body;
+  const normalizedCategory = typeof category === "string" ? category.trim() : category;
 
-  if (category !== undefined && !isValidProductCategory(category)) {
+  if (normalizedCategory !== undefined && !isValidProductCategory(normalizedCategory)) {
     return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
   }
 
@@ -79,7 +80,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const updateDoc: Record<string, unknown> = {};
   const unsetDoc: Record<string, 1> = {};
   if (name) updateDoc.name = name.trim();
-  if (category !== undefined) updateDoc.category = category;
+  if (normalizedCategory !== undefined) updateDoc.category = normalizedCategory;
   if (image !== undefined) updateDoc.image = image;
   if (isActive !== undefined) updateDoc.isActive = isActive;
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
-import { isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
+import { isStandardSupplyLotSize, isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
 
@@ -32,7 +32,8 @@ function parseSupplyItem(raw: Record<string, unknown>): SupplyItemInput | null {
   const productId = raw.productId;
   const lotSize = Number(raw.lotSize);
   const lotPrice = Number(raw.lotPrice);
-  const numberOfLots = Number(raw.numberOfLots);
+  const rawNumberOfLots = Number(raw.numberOfLots);
+  const numberOfLots = isStandardSupplyLotSize(lotSize) ? rawNumberOfLots : 1;
   const marketSellingPrice = Number(raw.marketSellingPrice);
 
   if (
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
   /** Une seule entrée (ancien format) */
   const { productId, lotSize, lotPrice, numberOfLots, marketSellingPrice } = body;
 
-  if (!productId || !lotSize || !lotPrice || !numberOfLots || !marketSellingPrice) {
+  if (!productId || lotSize === undefined || lotPrice === undefined || marketSellingPrice === undefined) {
     return NextResponse.json({ error: "Tous les champs sont requis" }, { status: 400 });
   }
 
@@ -151,14 +152,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const totalUnits = Number(lotSize) * Number(numberOfLots);
-  const totalCost = Number(lotPrice) * Number(numberOfLots);
+  const nextNumberOfLots = isStandardSupplyLotSize(ls) ? Number(numberOfLots) : 1;
+  if (!Number.isFinite(nextNumberOfLots) || nextNumberOfLots < 1) {
+    return NextResponse.json({ error: "Nombre de casiers invalide." }, { status: 400 });
+  }
+
+  const totalUnits = Number(lotSize) * nextNumberOfLots;
+  const totalCost = Number(lotPrice) * nextNumberOfLots;
 
   const supply = new Supply({
     product: productId,
     lotSize: Number(lotSize),
     lotPrice: Number(lotPrice),
-    numberOfLots: Number(numberOfLots),
+    numberOfLots: nextNumberOfLots,
     marketSellingPrice: m,
     totalUnits,
     totalCost,

@@ -93,7 +93,7 @@ function isLineComplete(line: SupplyForm, products: ProductOption[] | undefined)
   if (!line.productId) return false;
   if (products && !products.some((p) => p._id === line.productId)) return false;
   const lotPrice = parseFloat(line.lotPrice);
-  const numberOfLots = parseInt(line.numberOfLots, 10);
+  const numberOfLots = line.lotSizeMode === "custom" ? 1 : parseInt(line.numberOfLots, 10);
   const marketSellingPrice = parseFloat(line.marketSellingPrice);
   if (
     !isValidLotSizeChoice(line.lotSize) ||
@@ -110,18 +110,19 @@ function isLineComplete(line: SupplyForm, products: ProductOption[] | undefined)
 }
 
 function linePayload(line: SupplyForm) {
+  const numberOfLots = line.lotSizeMode === "custom" ? 1 : parseInt(line.numberOfLots, 10);
   return {
     productId: line.productId,
     lotSize: parseInt(line.lotSize, 10),
     lotPrice: parseFloat(line.lotPrice),
-    numberOfLots: parseInt(line.numberOfLots, 10),
+    numberOfLots,
     marketSellingPrice: parseFloat(line.marketSellingPrice),
   };
 }
 
 /** Données pour le récap « casiers / taille / prix / total » sur une ligne d’appro */
 function supplyLineRecapValues(line: SupplyForm) {
-  const nbCasiers = parseInt(line.numberOfLots, 10);
+  const nbCasiers = line.lotSizeMode === "custom" ? 1 : parseInt(line.numberOfLots, 10);
   const taille = parseInt(line.lotSize, 10);
   const prixCasier = parseFloat(line.lotPrice);
   const nOk = Number.isFinite(nbCasiers) && nbCasiers >= 1;
@@ -265,8 +266,9 @@ function SupplyDialog({
   const createTotals = lines.reduce(
     (acc, line) => {
       if (!isLineComplete(line, products)) return acc;
-      const u = parseInt(line.lotSize, 10) * parseInt(line.numberOfLots, 10);
-      const c = parseFloat(line.lotPrice) * parseInt(line.numberOfLots, 10);
+      const numberOfLots = line.lotSizeMode === "custom" ? 1 : parseInt(line.numberOfLots, 10);
+      const u = parseInt(line.lotSize, 10) * numberOfLots;
+      const c = parseFloat(line.lotPrice) * numberOfLots;
       return { units: acc.units + u, cost: acc.cost + c };
     },
     { units: 0, cost: 0 }
@@ -349,7 +351,13 @@ function SupplyDialog({
                         ? String(p.marketSellingPrice)
                         : "";
                     const pack = p ? lotDefaultsFromProductCatalog(p) : { lotSize: "", lotSizeMode: "preset" as const, lotPrice: "" };
-                    setForm({ ...form, productId: v, marketSellingPrice: pref, ...pack });
+                    setForm({
+                      ...form,
+                      productId: v,
+                      marketSellingPrice: pref,
+                      ...pack,
+                      numberOfLots: pack.lotSizeMode === "custom" ? "1" : form.numberOfLots,
+                    });
                   }}
                 >
                   <SelectTrigger>
@@ -382,7 +390,7 @@ function SupplyDialog({
                     }
                     onValueChange={(v) => {
                       if (v === SUPPLY_LOT_SIZE_SELECT_OTHER) {
-                        setForm({ ...form, lotSizeMode: "custom", lotSize: "" });
+                        setForm({ ...form, lotSizeMode: "custom", lotSize: "", numberOfLots: "1" });
                       } else {
                         setForm({ ...form, lotSizeMode: "preset", lotSize: v });
                       }
@@ -428,14 +436,20 @@ function SupplyDialog({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Nombre de casiers</Label>
-                  <Input
-                    type="number"
-                    placeholder="4"
-                    value={form.numberOfLots}
-                    onChange={(e) => setForm({ ...form, numberOfLots: e.target.value })}
-                    required
-                    min={1}
-                  />
+                  {form.lotSizeMode === "custom" ? (
+                    <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm">
+                      1
+                    </div>
+                  ) : (
+                    <Input
+                      type="number"
+                      placeholder="4"
+                      value={form.numberOfLots}
+                      onChange={(e) => setForm({ ...form, numberOfLots: e.target.value })}
+                      required
+                      min={1}
+                    />
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Prix vente marché (FCFA)</Label>
@@ -542,7 +556,12 @@ function SupplyDialog({
                                     ? String(p.marketSellingPrice)
                                     : "";
                                 const pack = p ? lotDefaultsFromProductCatalog(p) : { lotSize: "", lotSizeMode: "preset" as const, lotPrice: "" };
-                                updateLine(line.id, { productId: v, marketSellingPrice: pref, ...pack });
+                                updateLine(line.id, {
+                                  productId: v,
+                                  marketSellingPrice: pref,
+                                  ...pack,
+                                  numberOfLots: pack.lotSizeMode === "custom" ? "1" : line.numberOfLots,
+                                });
                               }}
                             >
                               <SelectTrigger>
@@ -571,7 +590,7 @@ function SupplyDialog({
                                 }
                                 onValueChange={(v) => {
                                   if (v === SUPPLY_LOT_SIZE_SELECT_OTHER) {
-                                    updateLine(line.id, { lotSizeMode: "custom", lotSize: "" });
+                                    updateLine(line.id, { lotSizeMode: "custom", lotSize: "", numberOfLots: "1" });
                                   } else {
                                     updateLine(line.id, { lotSizeMode: "preset", lotSize: v });
                                   }
@@ -615,13 +634,19 @@ function SupplyDialog({
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                               <Label>Nombre de casiers</Label>
-                              <Input
-                                type="number"
-                                placeholder="4"
-                                value={line.numberOfLots}
-                                onChange={(e) => updateLine(line.id, { numberOfLots: e.target.value })}
-                                min={1}
-                              />
+                              {line.lotSizeMode === "custom" ? (
+                                <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm">
+                                  1
+                                </div>
+                              ) : (
+                                <Input
+                                  type="number"
+                                  placeholder="4"
+                                  value={line.numberOfLots}
+                                  onChange={(e) => updateLine(line.id, { numberOfLots: e.target.value })}
+                                  min={1}
+                                />
+                              )}
                             </div>
                             <div className="space-y-1.5">
                               <Label>Prix vente marché (FCFA)</Label>

@@ -23,8 +23,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { name, image, category, marketSellingPrice, quantiteStandardPack, prixCasier } = body;
+  const normalizedCategory = typeof category === "string" ? category.trim() : category;
 
-  if (!name || !category) {
+  if (!name || !normalizedCategory) {
     return NextResponse.json({ error: "Nom et catégorie requis" }, { status: 400 });
   }
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!isValidProductCategory(category)) {
+  if (!isValidProductCategory(normalizedCategory)) {
     return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
   }
 
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   const product = await Product.create({
     name: name.trim(),
-    category,
+    category: normalizedCategory,
     image: image || "",
     marketSellingPrice: market,
     ...(qs !== undefined ? { quantiteStandardPack: qs } : {}),
