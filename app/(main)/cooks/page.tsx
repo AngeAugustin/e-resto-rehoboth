@@ -9,6 +9,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { PremiumTableShell } from "@/components/shared/PremiumTableShell";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -155,7 +162,78 @@ export default function CooksPage() {
     <div>
       <PageHeader title="Cuisinières" subtitle="Équipe cuisine" action={<Button onClick={() => { setEdit(undefined); setOpen(true); }}><Plus className="h-4 w-4" />Ajouter</Button>} />
       <div className="mb-8 max-w-xs">{isLoading ? <Skeleton className="h-28" /> : <StatsCard title="Cuisinières" value={cooks?.length ?? 0} icon={ChefHat} index={0} />}</div>
-      <PremiumTableShell title="Équipe" isLoading={isLoading} empty={!isLoading && !cooks?.length} emptyMessage="Aucune cuisinière" skeletonRows={5} tableMinWidthClass="min-w-[720px]" skeletonColSpan={4}>
+      <PremiumTableShell
+        title="Équipe"
+        isLoading={isLoading}
+        empty={!isLoading && !cooks?.length}
+        emptyMessage="Aucune cuisinière"
+        skeletonRows={5}
+        tableMinWidthClass="min-w-[720px]"
+        skeletonColSpan={4}
+        mobileContent={
+          <MobileCardList>
+            {rows.map((c) => (
+              <MobileDataCard key={c._id}>
+                <MobileDataCardHeader
+                  title={`${c.firstName} ${c.lastName}`}
+                  badge={
+                    c.isActive ? (
+                      <span className="inline-flex rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-slate-200/80 bg-slate-500/10 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                        Désactivée
+                      </span>
+                    )
+                  }
+                />
+                <MobileDataCardMeta
+                  items={[{ label: "Téléphone", value: c.phone || "—" }]}
+                />
+                <MobileDataCardActions>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-9 rounded-xl text-xs"
+                    onClick={() => toggle(c)}
+                  >
+                    {c.isActive ? "Désactiver" : "Activer"}
+                  </Button>
+                  <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-xl" asChild>
+                    <Link href={`/cooks/${c._id}`} aria-label={`Voir ${c.firstName}`}>
+                      <Eye className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-xl"
+                    onClick={() => { setEdit(c); setOpen(true); }}
+                    aria-label="Modifier"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {isDirector && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl border-rose-200/60 text-rose-600"
+                      onClick={() => setPending(c)}
+                      aria-label="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </MobileDataCardActions>
+              </MobileDataCard>
+            ))}
+          </MobileCardList>
+        }
+      >
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b text-[11px] uppercase text-slate-500">

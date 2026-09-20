@@ -16,14 +16,14 @@ function MainArea({ children }: { children: ReactNode }) {
   return (
     <main
       className={cn(
-        "w-full min-w-0 pb-20 transition-[padding] duration-200 ease-out lg:pb-0",
+        "w-full min-w-0 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] transition-[padding] duration-200 ease-out lg:pb-0",
         !hydrated || !collapsed ? "lg:pl-64" : "lg:pl-[calc(4.5rem+0.75rem)]"
       )}
     >
       <AppModuleHeader />
       <div
         className={cn(
-          "mx-auto min-w-0 max-w-7xl px-4 py-6 sm:px-6",
+          "mx-auto min-w-0 max-w-7xl px-3 py-4 sm:px-6 sm:py-6",
           isCollapsed
             ? "lg:mx-0 lg:w-full lg:min-w-0 lg:max-w-none lg:px-6 xl:px-8"
             : "lg:mx-auto lg:px-8"

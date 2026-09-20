@@ -95,12 +95,12 @@ export default function LoginPage() {
               className="h-28 w-28 rounded-full object-contain"
             />
           </motion.div>
-          <h1 className="text-2xl font-bold text-primary">{solutionName}</h1>
+          <h1 className="text-xl font-bold text-primary sm:text-2xl px-1 leading-snug">{solutionName}</h1>
           <p className="text-sm text-[#6B7280] mt-1">Connectez-vous à votre espace</p>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-5 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email">Adresse email</Label>

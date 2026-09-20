@@ -43,12 +43,12 @@ export function PaginationControls({
         <span className="font-medium text-[#0D0D0D]">{totalItems}</span>
       </p>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex max-w-full items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Button
           type="button"
           size="icon"
           variant="outline"
-          className="h-8 w-8"
+          className="h-9 w-9 shrink-0 sm:h-8 sm:w-8"
           disabled={safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
           aria-label="Page précédente"
@@ -58,10 +58,10 @@ export function PaginationControls({
 
         {pages[0] && pages[0] > 1 && (
           <>
-            <Button type="button" size="sm" variant="outline" className="h-8 min-w-8 px-2" onClick={() => onPageChange(1)}>
+            <Button type="button" size="sm" variant="outline" className="h-9 min-w-9 shrink-0 px-2 sm:h-8 sm:min-w-8" onClick={() => onPageChange(1)}>
               1
             </Button>
-            {pages[0] > 2 && <span className="px-1 text-[#9CA3AF]">…</span>}
+            {pages[0] > 2 && <span className="shrink-0 px-1 text-[#9CA3AF]">…</span>}
           </>
         )}
 
@@ -71,7 +71,7 @@ export function PaginationControls({
             type="button"
             size="sm"
             variant={page === safePage ? "default" : "outline"}
-            className="h-8 min-w-8 px-2"
+            className="h-9 min-w-9 shrink-0 px-2 sm:h-8 sm:min-w-8"
             onClick={() => onPageChange(page)}
           >
             {page}
@@ -80,12 +80,12 @@ export function PaginationControls({
 
         {pages[pages.length - 1] && pages[pages.length - 1] < totalPages && (
           <>
-            {pages[pages.length - 1] < totalPages - 1 && <span className="px-1 text-[#9CA3AF]">…</span>}
+            {pages[pages.length - 1] < totalPages - 1 && <span className="shrink-0 px-1 text-[#9CA3AF]">…</span>}
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="h-8 min-w-8 px-2"
+              className="h-9 min-w-9 shrink-0 px-2 sm:h-8 sm:min-w-8"
               onClick={() => onPageChange(totalPages)}
             >
               {totalPages}
@@ -97,7 +97,7 @@ export function PaginationControls({
           type="button"
           size="icon"
           variant="outline"
-          className="h-8 w-8"
+          className="h-9 w-9 shrink-0 sm:h-8 sm:w-8"
           disabled={safePage >= totalPages}
           onClick={() => onPageChange(safePage + 1)}
           aria-label="Page suivante"

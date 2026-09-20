@@ -692,7 +692,7 @@ function ProductImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="flex max-h-[min(90dvh,900px)] w-[calc(100%-1rem)] max-w-6xl flex-col overflow-hidden sm:w-full">
         <DialogHeader>
           <DialogTitle>Importer des produits</DialogTitle>
           <DialogDescription>
@@ -1118,12 +1118,12 @@ export default function ProductsPage() {
         subtitle="Gérez votre catalogue de produits"
         action={
           canManageProducts ? (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="w-4 h-4" />
                 Importer
               </Button>
-              <Button onClick={openCreate}>
+              <Button className="w-full sm:w-auto" onClick={openCreate}>
                 <Plus className="w-4 h-4" />
                 Nouveau produit
               </Button>
@@ -1133,7 +1133,7 @@ export default function ProductsPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:gap-4 sm:mb-8 lg:grid-cols-4">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
@@ -1216,7 +1216,7 @@ export default function ProductsPage() {
         </label>
       </div>
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 10 }).map((_, i) => (
             <Skeleton key={i} className="h-52 rounded-xl" />
           ))}
@@ -1227,7 +1227,7 @@ export default function ProductsPage() {
           <p className="text-[#9CA3AF]">Aucun produit trouvé</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
           <AnimatePresence>
             {paginated.map((product, i) => (
               <motion.div

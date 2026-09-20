@@ -7,6 +7,13 @@ import { useSession } from "next-auth/react";
 import { Plus, Pencil, Trash2, Wallet, Eye, X, Banknote } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -240,7 +247,89 @@ export default function PayrollPage() {
       <div className="mb-6 max-w-xs">
         {isLoading ? <Skeleton className="h-28" /> : <StatsCard title="Total versé" value={formatCurrency(payrollData?.stats.totalAmount ?? 0)} icon={Wallet} index={0} />}
       </div>
-      <div className="min-w-0 max-w-full overflow-x-auto rounded-xl border">
+      <div>
+        <div className="lg:hidden">
+          <MobileCardList>
+            {(payrollData?.items ?? []).map((p) => (
+              <MobileDataCard key={p._id}>
+                <MobileDataCardHeader
+                  title={personName(p)}
+                  badge={
+                    <span className="inline-flex rounded-full border border-slate-200/80 bg-slate-500/10 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                      {PAYROLL_TYPE_LABEL[p.beneficiaryType]}
+                    </span>
+                  }
+                />
+                <MobileDataCardMeta
+                  items={[
+                    {
+                      label: "Période",
+                      value: `${formatDate(p.periodStart)} → ${formatDate(p.periodEnd)}`,
+                    },
+                    { label: "Montant", value: formatCurrency(p.amount) },
+                    {
+                      label: "Statut",
+                      value: p.isPaid ? (
+                        <span className="inline-flex rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                          Payée
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-amber-200/55 bg-amber-400/10 px-2.5 py-0.5 text-xs font-medium text-amber-950/80">
+                          À payer
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
+                <MobileDataCardActions>
+                  {!p.isPaid && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-9 w-9 rounded-xl"
+                      title="Marquer comme payée"
+                      aria-label={`Payer ${personName(p)}`}
+                      onClick={() => setPendingPaySlip(p)}
+                    >
+                      <Banknote className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button type="button" size="icon" variant="outline" className="h-9 w-9 rounded-xl" asChild>
+                    <Link href={`/payroll/${p._id}`} title="Aperçu de la fiche" aria-label="Aperçu de la fiche de paie">
+                      <Eye className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  {!p.isPaid && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-9 w-9 rounded-xl"
+                      onClick={() => openCreate(p)}
+                      aria-label={`Modifier ${personName(p)}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {isDirector && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-9 w-9 rounded-xl border-rose-200/60 text-rose-600"
+                      onClick={() => setPendingDeleteSlip(p)}
+                      aria-label="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </MobileDataCardActions>
+              </MobileDataCard>
+            ))}
+          </MobileCardList>
+        </div>
+        <div className="hidden min-w-0 overflow-x-auto rounded-xl border lg:block">
             <table className="w-full min-w-[800px] text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -301,6 +390,7 @@ export default function PayrollPage() {
               </tbody>
             </table>
           </div>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">

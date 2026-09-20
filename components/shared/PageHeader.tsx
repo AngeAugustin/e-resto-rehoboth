@@ -14,13 +14,17 @@ export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8"
+      className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
     >
-      <div>
-        <h1 className="text-2xl font-bold text-[#0D0D0D] tracking-tight">{title}</h1>
-        <p className="text-sm text-[#6B7280] mt-0.5">{subtitle}</p>
+      <div className="min-w-0">
+        <h1 className="text-xl font-bold tracking-tight text-[#0D0D0D] sm:text-2xl">{title}</h1>
+        <p className="mt-0.5 text-sm text-[#6B7280]">{subtitle}</p>
       </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
+      {action ? (
+        <div className="w-full min-w-0 sm:w-auto sm:flex-shrink-0 [&>a]:w-full [&>button]:w-full sm:[&>a]:w-auto sm:[&>button]:w-auto">
+          {action}
+        </div>
+      ) : null}
     </motion.div>
   );
 }

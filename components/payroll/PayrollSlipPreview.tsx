@@ -117,14 +117,14 @@ export function PayrollSlipPreview({
 
   return (
     <div className="w-full">
-      <div className="no-print mb-4 flex items-center justify-between gap-3">
+      <div className="no-print mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9CA3AF]">Aperçu document</span>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {!payroll.isPaid && onMarkPaid ? (
             <Button
               type="button"
               size="sm"
-              className="h-9 gap-2 rounded-lg"
+              className="h-9 flex-1 gap-2 rounded-lg sm:flex-none"
               onClick={onMarkPaid}
               disabled={markingPaid}
             >
@@ -136,30 +136,31 @@ export function PayrollSlipPreview({
             type="button"
             variant="outline"
             size="sm"
-            className="h-9 gap-2 rounded-lg"
+            className="h-9 flex-1 gap-2 rounded-lg sm:flex-none"
             onClick={() => window.print()}
           >
             <Printer className="h-4 w-4" />
-            Imprimer
+            <span className="sm:inline">Imprimer</span>
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="h-9 gap-2 rounded-lg"
+            className="h-9 flex-1 gap-2 rounded-lg sm:flex-none"
             onClick={handleDownloadPdf}
             disabled={pdfLoading}
           >
             {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Télécharger PDF
+            <span className="truncate">PDF</span>
           </Button>
         </div>
       </div>
 
+      <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg [-webkit-overflow-scrolling:touch]">
       <div
         ref={slipRef}
         id="payroll-slip-print"
-        className="mx-auto w-full max-w-[794px] bg-white px-8 py-8 text-slate-900 shadow-md ring-1 ring-slate-200"
+        className="mx-auto w-full min-w-[640px] max-w-[794px] bg-white px-5 py-6 text-slate-900 shadow-md ring-1 ring-slate-200 sm:min-w-0 sm:px-8 sm:py-8"
         style={{ fontFamily: 'Georgia, "Times New Roman", Times, serif' }}
       >
         <header className="flex items-start justify-between gap-6 border-b-2 border-slate-900 pb-5">
@@ -290,6 +291,7 @@ export function PayrollSlipPreview({
         <p className="mt-8 text-center text-[10px] leading-relaxed text-slate-500">
           Document établi à titre de justificatif de versement de salaire.
         </p>
+      </div>
       </div>
     </div>
   );

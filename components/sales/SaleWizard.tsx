@@ -364,17 +364,17 @@ export default function SaleWizard({
   const backHref = mode === "create" ? "/sales" : `/sales/${editSaleId}`;
 
   return (
-    <div className="min-w-0 max-w-full min-h-[calc(100vh-6rem)] pb-8">
-      <div className="mb-8">
+    <div className="min-h-[calc(100vh-6rem)] min-w-0 max-w-full pb-4 lg:pb-8">
+      <div className="mb-6 sm:mb-8">
         <Link
           href={backHref}
-          className="inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-primary transition-colors mb-4"
+          className="mb-4 inline-flex items-center gap-2 text-sm text-[#6B7280] transition-colors hover:text-primary"
         >
           <ArrowLeft className="w-4 h-4" />
           {mode === "create" ? "Retour aux ventes" : "Retour à la fiche vente"}
         </Link>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             {mode === "create" ? "Nouvelle vente" : "Modifier la vente"}
           </h1>
           <p className="text-sm text-[#6B7280] mt-1">

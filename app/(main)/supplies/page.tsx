@@ -14,6 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
 import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -875,7 +882,7 @@ export default function SuppliesPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:gap-4 sm:mb-8 lg:grid-cols-4">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
@@ -923,6 +930,66 @@ export default function SuppliesPage() {
           skeletonRows={5}
           tableMinWidthClass="min-w-[980px]"
           skeletonColSpan={canManageSupplies ? 8 : 7}
+          mobileContent={
+            <MobileCardList>
+              {paginatedSupplies.map((supply) => {
+                const product = supply.product as { name: string };
+                const user = supply.createdBy as { firstName: string; lastName: string };
+                return (
+                  <MobileDataCard key={supply._id}>
+                    <MobileDataCardHeader
+                      title={product?.name ?? "Produit"}
+                      meta={formatDate(supply.createdAt)}
+                    />
+                    <MobileDataCardMeta
+                      items={[
+                        {
+                          label: "Casiers",
+                          value: `${supply.numberOfLots} × ${supply.lotSize}`,
+                        },
+                        { label: "Unités", value: `${supply.totalUnits}` },
+                        { label: "Coût", value: formatCurrency(supply.totalCost) },
+                        {
+                          label: "Prix vente",
+                          value: formatCurrency(supply.marketSellingPrice),
+                        },
+                        {
+                          label: "Par",
+                          value: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "—",
+                        },
+                      ]}
+                    />
+                    {canManageSupplies ? (
+                      <MobileDataCardActions>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl"
+                          onClick={() => openEdit(supply)}
+                          aria-label="Modifier"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        {isDirector ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 rounded-xl border-rose-200/60 text-rose-600"
+                            onClick={() => setSupplyToDelete(supply)}
+                            aria-label="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                      </MobileDataCardActions>
+                    ) : null}
+                  </MobileDataCard>
+                );
+              })}
+            </MobileCardList>
+          }
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] border-collapse text-left text-sm">

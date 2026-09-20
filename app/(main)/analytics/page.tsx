@@ -8,6 +8,12 @@ import { motion } from "framer-motion";
 import { Download, ImageIcon, ShoppingCart, TrendingUp, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -180,10 +186,10 @@ export default function AnalyticsPage() {
   };
 
   const filtersAction = (
-    <div className="w-full sm:w-auto flex flex-col items-stretch sm:items-end gap-2">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="flex w-full flex-col items-stretch gap-2 lg:w-auto lg:items-end">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         <Select value={filter} onValueChange={(value) => setFilter(value as AnalyticsFilter)}>
-          <SelectTrigger className="w-[190px]">
+          <SelectTrigger className="w-full sm:w-[190px]">
             <SelectValue placeholder="Choisir une période" />
           </SelectTrigger>
           <SelectContent>
@@ -199,7 +205,7 @@ export default function AnalyticsPage() {
 
         {(filter === "year" || filter === "semester" || filter === "month") && (
           <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
-            <SelectTrigger className="w-[110px]">
+            <SelectTrigger className="w-full sm:w-[110px]">
               <SelectValue placeholder="Année" />
             </SelectTrigger>
             <SelectContent>
@@ -214,7 +220,7 @@ export default function AnalyticsPage() {
 
         {filter === "month" && (
           <Select value={String(month)} onValueChange={(value) => setMonth(Number(value))}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-full sm:w-[150px]">
               <SelectValue placeholder="Mois" />
             </SelectTrigger>
             <SelectContent>
@@ -229,7 +235,7 @@ export default function AnalyticsPage() {
 
         {filter === "semester" && (
           <Select value={String(semester)} onValueChange={(value) => setSemester(Number(value))}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-full sm:w-[140px]">
               <SelectValue placeholder="Semestre" />
             </SelectTrigger>
             <SelectContent>
@@ -240,27 +246,33 @@ export default function AnalyticsPage() {
         )}
 
         {filter === "custom" && (
-          <>
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             <Input
-              className="w-[150px]"
+              className="w-full sm:w-[150px]"
               type="date"
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
             />
-            <Input className="w-[150px]" type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+            <Input
+              className="w-full sm:w-[150px]"
+              type="date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+            />
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => setAppliedCustom({ from: customFrom, to: customTo })}
               disabled={!canApplyCustom}
             >
               Appliquer
             </Button>
-          </>
+          </div>
         )}
         <Button
           onClick={handleExportReport}
           disabled={isLoading || isExporting || !data}
-          className="min-w-[110px]"
+          className="w-full sm:min-w-[110px] sm:w-auto"
         >
           <Download className="h-4 w-4" />
           {isExporting ? "Export..." : "Exporter"}
@@ -269,7 +281,7 @@ export default function AnalyticsPage() {
       {filter === "custom" && hasInvalidCustomRange ? (
         <p className="text-xs text-red-700">La date de début doit être antérieure à la date de fin.</p>
       ) : null}
-      <p className="text-right text-xs text-muted-foreground">
+      <p className="text-left text-xs text-muted-foreground sm:text-right">
         Période active : <span className="font-medium text-foreground">{data?.period.label ?? "..."}</span>
       </p>
     </div>
@@ -283,7 +295,7 @@ export default function AnalyticsPage() {
         action={filtersAction}
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
@@ -352,17 +364,55 @@ export default function AnalyticsPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-4 pb-4">
+              <div className="flex flex-col gap-2 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <p className="text-sm text-muted-foreground">
                   Classement des produits par performance commerciale sur la période active.
                 </p>
-                <Badge variant="secondary">{products.length} produits</Badge>
+                <Badge variant="secondary" className="w-fit shrink-0">{products.length} produits</Badge>
               </div>
             )}
             {!isLoading && (
               <>
                 <Separator className="mb-4" />
-                <div className="min-w-0 max-w-full overflow-x-auto rounded-md border">
+                <div className="lg:hidden">
+                  <MobileCardList>
+                    {products.map((product, index) => {
+                      const share =
+                        productsTotalRevenue > 0
+                          ? ((product.revenue / productsTotalRevenue) * 100).toFixed(1)
+                          : "0";
+                      return (
+                        <MobileDataCard key={`${product.name}-${index}`}>
+                          <MobileDataCardHeader
+                            title={product.name}
+                            meta={`#${String(index + 1).padStart(2, "0")}`}
+                            badge={
+                              <span className="text-xs font-semibold text-muted-foreground">{share}%</span>
+                            }
+                          />
+                          <div className="mt-2 flex items-center gap-2">
+                            <ProductRowAvatar image={product.image} />
+                            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full bg-primary"
+                                style={{ width: `${share}%` }}
+                              />
+                            </div>
+                          </div>
+                          <MobileDataCardMeta
+                            items={[
+                              { label: "Prix", value: formatCurrency(product.price ?? 0) },
+                              { label: "Unités", value: product.units },
+                              { label: "Revenus", value: formatCurrency(product.revenue) },
+                              { label: "Bénéfice", value: formatCurrency(product.margin ?? 0) },
+                            ]}
+                          />
+                        </MobileDataCard>
+                      );
+                    })}
+                  </MobileCardList>
+                </div>
+                <div className="hidden min-w-0 max-w-full overflow-x-auto rounded-md border lg:block">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40">
@@ -435,7 +485,7 @@ export default function AnalyticsPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+                </div>
               </>
             )}
           </CardContent>

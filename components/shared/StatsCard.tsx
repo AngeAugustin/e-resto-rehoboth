@@ -98,16 +98,23 @@ export function StatsCard({
       transition={{ duration: 0.3, delay: index * 0.05 }}
       whileHover={{ y: -2 }}
       className={cn(
-        "flex cursor-default items-center gap-4 rounded-2xl bg-white p-4 shadow-[0_4px_6px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] transition-shadow duration-200 hover:shadow-[0_6px_12px_rgba(0,0,0,0.06)]"
+        "flex cursor-default items-center gap-2.5 rounded-2xl bg-white p-3 shadow-[0_4px_6px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] transition-shadow duration-200 hover:shadow-[0_6px_12px_rgba(0,0,0,0.06)] sm:gap-4 sm:p-4"
       )}
     >
-      <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white", a.icon)}>
-        <Icon className="h-5 w-5 stroke-[1.75]" />
+      <div
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white sm:h-11 sm:w-11",
+          a.icon
+        )}
+      >
+        <Icon className="h-4 w-4 stroke-[1.75] sm:h-5 sm:w-5" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-          <p className="text-xl font-bold tracking-tight text-[#0D0D0D]">{value}</p>
+          <p className="truncate text-base font-bold tracking-tight text-[#0D0D0D] sm:text-xl">
+            {value}
+          </p>
           {trend != null && (
             <span className={cn("text-[0.729rem] font-semibold tabular-nums", trendColor)}>
               {trend.value >= 0 ? "+" : ""}
@@ -116,15 +123,21 @@ export function StatsCard({
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-[0.729rem] font-medium text-[#6c757d]">{title}</p>
-        {subtitle ? <p className="mt-0.5 text-[0.625rem] text-[#9CA3AF]">{subtitle}</p> : null}
+        <p className="mt-0.5 truncate text-[0.6875rem] font-medium text-[#6c757d] sm:text-[0.729rem]">
+          {title}
+        </p>
+        {subtitle ? (
+          <p className="mt-0.5 truncate text-[0.625rem] text-[#9CA3AF]">{subtitle}</p>
+        ) : null}
       </div>
 
-      {useRing ? (
-        <RingBadge className={a.ring}>{inferredRing!}</RingBadge>
-      ) : (
-        <MiniBars className={a.bars} />
-      )}
+      <div className="hidden sm:block">
+        {useRing ? (
+          <RingBadge className={a.ring}>{inferredRing!}</RingBadge>
+        ) : (
+          <MiniBars className={a.bars} />
+        )}
+      </div>
     </motion.div>
   );
 }

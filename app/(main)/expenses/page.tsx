@@ -6,6 +6,13 @@ import { useSession } from "next-auth/react";
 import { Plus, Pencil, Trash2, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,7 +111,57 @@ export default function ExpensesPage() {
         )}
       </div>
 
-      <div className="min-w-0 max-w-full overflow-x-auto rounded-xl border">
+      <div>
+        <div className="lg:hidden">
+          <MobileCardList>
+            {(expensesData?.items ?? []).map((e) => (
+              <MobileDataCard key={e._id}>
+                <MobileDataCardHeader
+                  title={e.label}
+                  meta={formatDate(e.date)}
+                />
+                <MobileDataCardMeta
+                  items={[
+                    {
+                      label: "Catégorie",
+                      value: typeof e.category === "object" ? e.category.name : "—",
+                    },
+                    {
+                      label: "Paiement",
+                      value: typeof e.paymentMethod === "object" ? e.paymentMethod.name : "—",
+                    },
+                    { label: "Montant", value: formatCurrency(e.amount) },
+                  ]}
+                />
+                <MobileDataCardActions>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-9 w-9 rounded-xl"
+                    onClick={() => openForm(e)}
+                    aria-label="Modifier"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {canDelete && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-9 w-9 rounded-xl border-rose-200/60 text-rose-600"
+                      onClick={() => del.mutate(e._id)}
+                      aria-label="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </MobileDataCardActions>
+              </MobileDataCard>
+            ))}
+          </MobileCardList>
+        </div>
+        <div className="hidden min-w-0 overflow-x-auto rounded-xl border lg:block">
         <table className="w-full min-w-[800px] text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -132,6 +189,7 @@ export default function ExpensesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

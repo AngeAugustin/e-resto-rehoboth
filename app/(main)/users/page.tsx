@@ -9,6 +9,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -324,7 +331,7 @@ export default function UsersPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:gap-4 sm:mb-8 lg:grid-cols-3">
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
@@ -365,6 +372,85 @@ export default function UsersPage() {
           empty={!isLoading && (users?.length === 0)}
           emptyMessage="Aucun utilisateur"
           skeletonColSpan={7}
+          mobileContent={
+            <MobileCardList>
+              {paginatedUsers.map((user) => {
+                const roleLabel =
+                  user.role === "directeur"
+                    ? "Directeur"
+                    : user.role === "directrice"
+                      ? "Directrice"
+                      : "Gérant";
+                return (
+                  <MobileDataCard key={user._id}>
+                    <MobileDataCardHeader
+                      title={`${user.firstName} ${user.lastName}`}
+                      meta={user.email}
+                      badge={
+                        user.isActive ? (
+                          <span className="inline-flex rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                            Actif
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full border border-slate-200/80 bg-slate-500/10 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                            Désactivé
+                          </span>
+                        )
+                      }
+                    />
+                    <MobileDataCardMeta
+                      items={[
+                        { label: "Rôle", value: roleLabel },
+                        { label: "Téléphone", value: user.phone || "—" },
+                        { label: "Inscription", value: formatDate(user.createdAt) },
+                      ]}
+                    />
+                    <MobileDataCardActions>
+                      {user._id !== session?.user?.id && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-9 rounded-xl text-xs"
+                          disabled={toggleUser.isPending}
+                          onClick={() =>
+                            setUserToggleConfirm({
+                              user,
+                              nextActive: !user.isActive,
+                            })
+                          }
+                        >
+                          {user.isActive ? "Désactiver" : "Activer"}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl"
+                        onClick={() => openEdit(user)}
+                        aria-label={`Modifier ${user.firstName} ${user.lastName}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {isDirector && user._id !== session?.user?.id && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl border-rose-200/60 text-rose-600"
+                          onClick={() => setUserToDelete(user)}
+                          aria-label={`Supprimer ${user.firstName} ${user.lastName}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </MobileDataCardActions>
+                  </MobileDataCard>
+                );
+              })}
+            </MobileCardList>
+          }
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] border-collapse text-left text-sm">

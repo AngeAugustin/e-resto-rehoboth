@@ -10,6 +10,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -292,6 +299,73 @@ export default function WaitressesPage() {
           skeletonRows={6}
           tableMinWidthClass="min-w-[720px]"
           skeletonColSpan={5}
+          mobileContent={
+            <MobileCardList>
+              {paginatedWaitresses.map((w) => (
+                <MobileDataCard key={w._id}>
+                  <MobileDataCardHeader
+                    title={`${w.firstName} ${w.lastName}`}
+                    meta={w.phone || "Sans téléphone"}
+                    badge={
+                      w.isActive ? (
+                        <span className="inline-flex rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-slate-200/80 bg-slate-500/10 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                          Désactivée
+                        </span>
+                      )
+                    }
+                  />
+                  <MobileDataCardMeta
+                    items={[{ label: "Inscription", value: formatDate(w.createdAt) }]}
+                  />
+                  <MobileDataCardActions>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 rounded-xl text-xs"
+                      disabled={toggleMutation.isPending}
+                      onClick={() =>
+                        setWaitressToggleConfirm({ waitress: w, nextActive: !w.isActive })
+                      }
+                    >
+                      {w.isActive ? "Désactiver" : "Activer"}
+                    </Button>
+                    <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-xl" asChild>
+                      <Link href={`/waitresses/${w._id}`} aria-label={`Voir ${w.firstName}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl"
+                      onClick={() => openEdit(w)}
+                      aria-label="Modifier"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {isDirector && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl border-rose-200/60 text-rose-600"
+                        onClick={() => setWaitressPendingDelete(w)}
+                        aria-label="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </MobileDataCardActions>
+                </MobileDataCard>
+              ))}
+            </MobileCardList>
+          }
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">

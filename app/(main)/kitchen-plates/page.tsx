@@ -8,6 +8,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { PremiumTableShell } from "@/components/shared/PremiumTableShell";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,7 +79,64 @@ export default function KitchenPlatesPage() {
     <div>
       <PageHeader title="Plaquettes" subtitle="Supports de commande cuisine" action={<Button onClick={() => { setEdit(undefined); setOpen(true); }}><Plus className="h-4 w-4" />Ajouter</Button>} />
       <div className="mb-8 max-w-xs">{isLoading ? <Skeleton className="h-28" /> : <StatsCard title="Plaquettes" value={plates?.length ?? 0} icon={CreditCard} index={0} />}</div>
-      <PremiumTableShell title="Liste" isLoading={isLoading} empty={!isLoading && !plates?.length} emptyMessage="Aucune plaquette" skeletonRows={5} tableMinWidthClass="min-w-[640px]" skeletonColSpan={4}>
+      <PremiumTableShell
+        title="Liste"
+        isLoading={isLoading}
+        empty={!isLoading && !plates?.length}
+        emptyMessage="Aucune plaquette"
+        skeletonRows={5}
+        tableMinWidthClass="min-w-[640px]"
+        skeletonColSpan={4}
+        mobileContent={
+          <MobileCardList>
+            {rows.map((p) => (
+              <MobileDataCard key={p._id}>
+                <MobileDataCardHeader
+                  title={p.number}
+                  badge={
+                    p.occupiedByPendingOrderId ? (
+                      <span className="inline-flex rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-800">
+                        Occupée
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-sky-200/60 bg-sky-500/12 px-2.5 py-0.5 text-xs font-semibold text-sky-900">
+                        Libre
+                      </span>
+                    )
+                  }
+                />
+                <MobileDataCardMeta
+                  items={[{ label: "Créée", value: formatDate(p.createdAt) }]}
+                />
+                <MobileDataCardActions>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-xl"
+                    onClick={() => { setEdit(p); setOpen(true); }}
+                    aria-label="Modifier"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {isDirector && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl border-rose-200/60 text-rose-600"
+                      onClick={() => setPending(p)}
+                      aria-label="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </MobileDataCardActions>
+              </MobileDataCard>
+            ))}
+          </MobileCardList>
+        }
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-[11px] uppercase text-slate-500">

@@ -10,6 +10,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { VerifyTicketDialog } from "@/components/shared/VerifyTicketDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,12 +97,12 @@ export default function KitchenOrdersPage() {
         title="Cuisine"
         subtitle="Commandes repas — menus, cuisinières et plaquettes"
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" className="gap-1.5" onClick={() => setVerifyOpen(true)}>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            <Button type="button" variant="outline" className="w-full gap-1.5 sm:w-auto" onClick={() => setVerifyOpen(true)}>
               <BadgeCheck className="h-4 w-4" />
               Vérifier ticket
             </Button>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link href="/kitchen/new">
                 <Plus className="w-4 h-4" />
                 Nouvelle commande
@@ -107,7 +114,7 @@ export default function KitchenOrdersPage() {
 
       <VerifyTicketDialog open={verifyOpen} onOpenChange={setVerifyOpen} module="cuisine" />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:gap-4 sm:mb-8 lg:grid-cols-4">
         {listLoading ? (
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
@@ -143,6 +150,99 @@ export default function KitchenOrdersPage() {
           skeletonRows={6}
           tableMinWidthClass="min-w-[720px]"
           skeletonColSpan={7}
+          mobileContent={
+            <MobileCardList>
+              {listItems.map((order) => {
+                const kitchenWaitress = order.kitchenWaitress as { firstName: string; lastName: string };
+                const plate = order.plate as { number: string };
+                const statusBadge =
+                  order.status === "COMPLETED" ? (
+                    <span className="inline-flex rounded-full border border-emerald-200/60 bg-emerald-500/12 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">
+                      Clôturée
+                    </span>
+                  ) : order.status === "CANCELLED" ? (
+                    <span className="inline-flex rounded-full border border-rose-200/60 bg-rose-500/12 px-2.5 py-0.5 text-xs font-semibold text-rose-900">
+                      Annulée
+                    </span>
+                  ) : (
+                    <span className="inline-flex rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-900">
+                      En attente
+                    </span>
+                  );
+                return (
+                  <MobileDataCard key={order._id}>
+                    <MobileDataCardHeader
+                      title={`Plaquette ${plate?.number ?? "—"}`}
+                      meta={formatDateTime(order.createdAt)}
+                      badge={statusBadge}
+                    />
+                    <MobileDataCardMeta
+                      items={[
+                        {
+                          label: "Serveuse",
+                          value: kitchenWaitress?.firstName
+                            ? `${kitchenWaitress.firstName} ${kitchenWaitress.lastName}`
+                            : "—",
+                        },
+                        {
+                          label: "Menus",
+                          value: `${order.items.length}`,
+                        },
+                        {
+                          label: "Total",
+                          value: formatCurrency(order.totalAmount),
+                        },
+                      ]}
+                    />
+                    <MobileDataCardActions>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 shadow-sm"
+                        asChild
+                      >
+                        <Link href={`/kitchen/${order._id}`} aria-label="Voir les détails">
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      {order.status === "PENDING" && (
+                        <>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 shadow-sm"
+                            asChild
+                          >
+                            <Link href={`/kitchen/${order._id}/edit`} aria-label="Modifier la commande">
+                              <Pencil className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          {canCancel ? (
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm"
+                              aria-label="Annuler la commande"
+                              onClick={() => setOrderToCancel(order)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="sm"
+                            className="ml-auto rounded-xl shadow-sm"
+                            onClick={() => setOrderToClose(order)}
+                          >
+                            Clôturer
+                          </Button>
+                        </>
+                      )}
+                    </MobileDataCardActions>
+                  </MobileDataCard>
+                );
+              })}
+            </MobileCardList>
+          }
         >
           <div className="overflow-x-auto px-6">
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">

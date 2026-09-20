@@ -6,6 +6,12 @@ import { useSession } from "next-auth/react";
 import { Calculator, Download, Landmark, Pencil, Plus, Truck, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -285,7 +291,68 @@ export default function AccountingPage() {
         )}
       </div>
 
-      <div className="min-w-0 max-w-full overflow-x-auto rounded-xl border">
+      <div>
+        <div className="lg:hidden">
+          {filter === "range" && !rangeReady ? (
+            <p className="px-4 py-12 text-center text-sm text-[#6B7280]">
+              {invalidRange ? "La date de début doit précéder la date de fin." : "Choisissez une date de début et une date de fin."}
+            </p>
+          ) : snapshotLoading ? (
+            <div className="space-y-3 px-4 py-3">
+              <Skeleton className="h-[7.5rem] rounded-2xl" />
+              <Skeleton className="h-[7.5rem] rounded-2xl" />
+            </div>
+          ) : !opening ? (
+            <p className="px-4 py-12 text-center text-sm text-[#6B7280]">
+              Aucun solde d’ouverture. Enregistrez-en un pour commencer le suivi.
+            </p>
+          ) : !snapshot?.active ? (
+            <p className="px-4 py-12 text-center text-sm text-[#6B7280]">
+              Cette période est antérieure au solde d’ouverture ({formatDate(opening.openedAt)}).
+            </p>
+          ) : (
+            <MobileCardList>
+              <MobileDataCard>
+                <MobileDataCardHeader
+                  title={snapshot.period?.note || "Solde de départ de la période"}
+                  badge={<Badge variant="secondary">Départ</Badge>}
+                />
+                <MobileDataCardMeta
+                  items={[
+                    { label: "Date", value: formatDate(snapshot.from) },
+                    { label: "Sortie", value: "—" },
+                    { label: "Reste", value: formatCurrency(snapshot.startBalance) },
+                  ]}
+                />
+              </MobileDataCard>
+              {runningRows.map((row) => (
+                <MobileDataCard key={`${row.kind}-${row.id}`}>
+                  <MobileDataCardHeader
+                    title={row.label}
+                    badge={
+                      <Badge variant={row.kind === "SUPPLY" ? "pending" : "outline"}>
+                        {row.kind === "SUPPLY" ? "Approvisionnement" : "Dépense"}
+                      </Badge>
+                    }
+                  />
+                  <MobileDataCardMeta
+                    items={[
+                      { label: "Date", value: formatDate(row.date) },
+                      { label: "Sortie", value: formatCurrency(row.amount) },
+                      { label: "Reste", value: formatCurrency(row.remaining) },
+                    ]}
+                  />
+                </MobileDataCard>
+              ))}
+              {runningRows.length === 0 ? (
+                <p className="px-1 py-4 text-center text-sm text-[#6B7280]">
+                  Aucun approvisionnement ni dépense sur cette période.
+                </p>
+              ) : null}
+            </MobileCardList>
+          )}
+        </div>
+        <div className="hidden min-w-0 overflow-x-auto rounded-xl border lg:block">
         <table className="w-full min-w-[800px] text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -356,6 +423,7 @@ export default function AccountingPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <Dialog open={openForm} onOpenChange={setOpenForm}>

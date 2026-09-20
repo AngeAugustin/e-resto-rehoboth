@@ -9,6 +9,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
+import {
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardActions,
+  MobileDataCardHeader,
+  MobileDataCardMeta,
+} from "@/components/shared/MobileDataCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -296,6 +303,65 @@ export default function TablesPage() {
             </Button>
           }
           skeletonColSpan={5}
+          mobileContent={
+            <MobileCardList>
+              {paginatedTables.map((t) => (
+                <MobileDataCard key={t._id}>
+                  <MobileDataCardHeader
+                    title={t.name ?? `Table ${t.number}`}
+                    meta={`N° ${t.number}`}
+                    badge={
+                      t.occupiedByPendingSaleId ? (
+                        <span className="inline-flex rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-800">
+                          Occupée
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-sky-200/60 bg-sky-500/12 px-2.5 py-0.5 text-xs font-semibold text-sky-900">
+                          Libre
+                        </span>
+                      )
+                    }
+                  />
+                  <MobileDataCardMeta
+                    items={[
+                      {
+                        label: "Capacité",
+                        value:
+                          t.capacity != null
+                            ? `${t.capacity} place${t.capacity > 1 ? "s" : ""}`
+                            : "—",
+                      },
+                      { label: "Ajoutée", value: formatDate(t.createdAt) },
+                    ]}
+                  />
+                  <MobileDataCardActions>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl"
+                      onClick={() => openEdit(t)}
+                      aria-label="Modifier"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {isDirector && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl border-rose-200/60 text-rose-600"
+                        onClick={() => setTablePendingDelete(t)}
+                        aria-label="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </MobileDataCardActions>
+                </MobileDataCard>
+              ))}
+            </MobileCardList>
+          }
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] border-collapse text-left text-sm">

@@ -52,11 +52,11 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/analytics", label: "Analytiques", mobileLabel: "Stats", icon: BarChart3, roles: ["directeur", "directrice"], module: "bar" },
 
   { href: "/kitchen", label: "Commandes", mobileLabel: "Cuisine", icon: CookingPot, roles: ["directeur", "directrice", "gerant"], module: "cuisine" },
-  { href: "/kitchen-cash", label: "Caisse cuisine", icon: CircleDollarSign, roles: ["directeur", "directrice", "gerant"], module: "cuisine" },
+  { href: "/kitchen-cash", label: "Caisse cuisine", mobileLabel: "Caisse", icon: CircleDollarSign, roles: ["directeur", "directrice", "gerant"], module: "cuisine" },
   { href: "/menus", label: "Menus", icon: UtensilsCrossed, roles: ["directeur", "directrice", "gerant"], module: "cuisine" },
-  { href: "/cooks", label: "Cuisinières", icon: ChefHat, roles: ["directeur", "directrice"], module: "cuisine" },
-  { href: "/kitchen-waitresses", label: "Serveuses-Cuisinières", icon: UserRound, roles: ["directeur", "directrice"], module: "cuisine" },
-  { href: "/kitchen-plates", label: "Plaquettes", icon: CreditCard, roles: ["directeur", "directrice"], module: "cuisine" },
+  { href: "/cooks", label: "Cuisinières", mobileLabel: "Cuisinières", icon: ChefHat, roles: ["directeur", "directrice"], module: "cuisine" },
+  { href: "/kitchen-waitresses", label: "Serveuses-Cuisinières", mobileLabel: "Serveuses", icon: UserRound, roles: ["directeur", "directrice"], module: "cuisine" },
+  { href: "/kitchen-plates", label: "Plaquettes", mobileLabel: "Plaques", icon: CreditCard, roles: ["directeur", "directrice"], module: "cuisine" },
 
   { href: "/accounting", label: "Comptabilité", mobileLabel: "Compta", icon: Calculator, roles: ["directeur", "directrice"], module: "paie", exact: true },
   { href: "/accounting/fonctions", label: "Fonctions", icon: Briefcase, roles: ["directeur", "directrice"], module: "paie" },
@@ -74,14 +74,15 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
 export const APP_MODULES: {
   id: AppModuleId;
   label: string;
+  shortLabel?: string;
   icon: LucideIcon;
   homeHref: string;
   gerantHomeHref?: string;
 }[] = [
   { id: "bar", label: "Bar", icon: Wine, homeHref: "/dashboard", gerantHomeHref: "/dashboard" },
   { id: "cuisine", label: "Cuisine", icon: CookingPot, homeHref: "/kitchen", gerantHomeHref: "/kitchen" },
-  { id: "paie", label: "Comptabilité", icon: Calculator, homeHref: "/accounting" },
-  { id: "administration", label: "Administration", icon: Shield, homeHref: "/users" },
+  { id: "paie", label: "Comptabilité", shortLabel: "Compta", icon: Calculator, homeHref: "/accounting" },
+  { id: "administration", label: "Administration", shortLabel: "Admin", icon: Shield, homeHref: "/users" },
 ];
 
 const PATH_PREFIXES: { prefix: string; module: AppModuleId }[] = [
