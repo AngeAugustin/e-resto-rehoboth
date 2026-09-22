@@ -137,19 +137,13 @@ export function Sidebar() {
 
       {/* User + Logout */}
       <div className={cn("border-t border-white/10 py-4", collapsed ? "px-2" : "px-3")}>
-        <div
-          className={cn(
-            "flex py-2",
-            collapsed ? "flex-col items-center gap-2 px-0" : "items-center gap-2 px-3",
-            !collapsed && "justify-between"
-          )}
-        >
+        <div className={cn("flex flex-col", collapsed ? "items-center gap-2" : "gap-1")}>
           <Link
             href="/profile"
             prefetch={false}
             className={cn(
               "flex min-w-0 items-center gap-2 rounded-lg py-1 transition-colors hover:bg-white/10",
-              collapsed ? "justify-center px-1" : "flex-1 px-1"
+              collapsed ? "justify-center px-1" : "w-full px-2"
             )}
             title={collapsed ? "Mon profil" : undefined}
           >
@@ -163,17 +157,28 @@ export function Sidebar() {
               </div>
             )}
           </Link>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0 text-white/60 hover:bg-white/10 hover:text-white"
-            aria-label="Se déconnecter"
-            title="Se déconnecter"
-            onClick={() => setLogoutOpen(true)}
+          <div
+            className={cn(
+              "rounded-lg border border-white/20",
+              collapsed ? "p-0.5" : "mt-0.5 w-full p-1"
+            )}
           >
-            <LogOut className="size-4" />
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size={collapsed ? "icon" : "sm"}
+              className={cn(
+                "group text-white/60 hover:bg-white/10 hover:text-white",
+                collapsed ? "h-9 w-9" : "h-9 w-full justify-start gap-2 px-2 text-sm font-medium"
+              )}
+              aria-label="Déconnexion"
+              title="Déconnexion"
+              onClick={() => setLogoutOpen(true)}
+            >
+              <LogOut className="size-4 shrink-0 text-red-400 group-hover:text-red-300" />
+              {!collapsed && <span className="text-sm">Déconnexion</span>}
+            </Button>
+          </div>
         </div>
       </div>
 
