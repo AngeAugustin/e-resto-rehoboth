@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { isDirectionRole } from "@/lib/roles";
+import { isVersementCategoryName } from "@/lib/versement-category";
 import type { IExpenseCategory } from "@/types";
 
 export function ExpenseCategoriesPanel() {
@@ -68,10 +69,15 @@ export function ExpenseCategoriesPanel() {
         </form>
       )}
       <ul className="divide-y rounded-xl border">
-        {(categories ?? []).map((c) => (
+        {(categories ?? []).map((c) => {
+          const isSystem = isVersementCategoryName(c.name);
+          return (
           <li key={c._id} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
-            <span className="min-w-0 truncate">{c.name}</span>
-            {canManage && (
+            <span className="min-w-0 truncate">
+              {c.name}
+              {isSystem ? <span className="ml-2 text-xs text-slate-400">(système)</span> : null}
+            </span>
+            {canManage && !isSystem && (
               <div className="flex shrink-0 gap-1">
                 <Button size="sm" variant="outline" onClick={() => startEdit(c)}>Modifier</Button>
                 {isDirector && (
@@ -94,7 +100,8 @@ export function ExpenseCategoriesPanel() {
               </div>
             )}
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );

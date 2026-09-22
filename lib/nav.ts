@@ -17,6 +17,7 @@ import {
   CreditCard,
   Banknote,
   Landmark,
+  Building2,
   CircleDollarSign,
   Wine,
   Shield,
@@ -25,9 +26,10 @@ import {
   Tags,
   HandCoins,
   PenLine,
+  CalendarRange,
 } from "lucide-react";
 
-export type AppModuleId = "bar" | "cuisine" | "paie" | "administration";
+export type AppModuleId = "immobilisations" | "bar" | "cuisine" | "paie" | "administration";
 export type NavModule = AppModuleId;
 
 export type AppNavItem = {
@@ -59,6 +61,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/kitchen-plates", label: "Plaquettes", mobileLabel: "Plaques", icon: CreditCard, roles: ["directeur", "directrice"], module: "cuisine" },
 
   { href: "/accounting", label: "Comptabilité", mobileLabel: "Compta", icon: Calculator, roles: ["directeur", "directrice"], module: "paie", exact: true },
+  { href: "/accounting/exercices", label: "Exercices", icon: CalendarRange, roles: ["directeur", "directrice"], module: "paie" },
   { href: "/accounting/fonctions", label: "Fonctions", icon: Briefcase, roles: ["directeur", "directrice"], module: "paie" },
   { href: "/accounting/categories", label: "Catégories", mobileLabel: "Catég.", icon: Tags, roles: ["directeur", "directrice"], module: "paie" },
   { href: "/accounting/modes-paiement", label: "Modes de paiement", mobileLabel: "Paiement", icon: HandCoins, roles: ["directeur", "directrice"], module: "paie" },
@@ -69,6 +72,8 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/users", label: "Utilisateurs", mobileLabel: "Équipe", icon: Users, roles: ["directeur", "directrice"], module: "administration" },
   { href: "/settings", label: "Paramètres", mobileLabel: "Réglages", icon: Settings2, roles: ["directeur", "directrice"], module: "administration" },
   { href: "/guide", label: "Guide", icon: BookOpen, roles: ["directeur", "directrice"], module: "administration" },
+
+  { href: "/immobilisations", label: "Immobilisations", mobileLabel: "Immo.", icon: Building2, roles: ["directeur", "directrice"], module: "immobilisations" },
 ];
 
 export const APP_MODULES: {
@@ -83,9 +88,11 @@ export const APP_MODULES: {
   { id: "cuisine", label: "Cuisine", icon: CookingPot, homeHref: "/kitchen", gerantHomeHref: "/kitchen" },
   { id: "paie", label: "Comptabilité", shortLabel: "Compta", icon: Calculator, homeHref: "/accounting" },
   { id: "administration", label: "Administration", shortLabel: "Admin", icon: Shield, homeHref: "/users" },
+  { id: "immobilisations", label: "Immobilisations", shortLabel: "Immo.", icon: Building2, homeHref: "/immobilisations" },
 ];
 
 const PATH_PREFIXES: { prefix: string; module: AppModuleId }[] = [
+  { prefix: "/immobilisations", module: "immobilisations" },
   { prefix: "/dashboard", module: "bar" },
   { prefix: "/products", module: "bar" },
   { prefix: "/supplies", module: "bar" },

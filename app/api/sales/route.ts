@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import Sale from "@/models/Sale";
-import Supply from "@/models/Supply";
 import Product from "@/models/Product";
 import CashSession from "@/models/CashSession";
 import { barCashSessionFilter } from "@/lib/cash-session";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
+import { getProductStock } from "@/lib/inventory";
 import { resolveSaleLinePricing } from "@/lib/sale-pricing";
 import {
   parseTableIdsFromRequestBody,
@@ -38,6 +39,8 @@ export async function GET(req: NextRequest) {
   const skip = (page - 1) * pageSize;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
+  const exerciceFilter = withExercice(exerciceId);
 
   const [statsAgg, sales] = await Promise.all([
     Sale.aggregate<{
@@ -46,6 +49,7 @@ export async function GET(req: NextRequest) {
       pendingSales: number;
       completedSales: number;
     }>([
+      { $match: exerciceFilter },
       {
         $group: {
           _id: null,
@@ -64,7 +68,7 @@ export async function GET(req: NextRequest) {
         },
       },
     ]),
-    Sale.find()
+    Sale.find(exerciceFilter)
       .populate("waitress", "firstName lastName")
       .populate("tables", "number name")
       .populate("table", "number name")
@@ -97,11 +101,12 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const body = await req.json();
   const { waitressId, items } = body;
   const tableIds = parseTableIdsFromRequestBody(body);
 
-  const latestCashSession = await CashSession.findOne(barCashSessionFilter()).sort({ createdAt: -1 }).select("status").lean<{
+  const latestCashSession = await CashSession.findOne(barCashSessionFilter(exerciceId)).sort({ createdAt: -1 }).select("status").lean<{
     status: "OPEN" | "CLOSED";
   } | null>();
   if (!latestCashSession || latestCashSession.status !== "OPEN") {
@@ -121,7 +126,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const pendingConflict = await Sale.findOne(pendingSaleUsesAnyTableFilter(tableIds));
+  const pendingConflict = await Sale.findOne(
+    withExercice(exerciceId, pendingSaleUsesAnyTableFilter(tableIds) as Record<string, unknown>)
+  );
   if (pendingConflict) {
     return NextResponse.json(
       {
@@ -132,23 +139,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Validate stock for each item
   for (const item of items) {
     const { productId, quantity } = item;
-
-    const supplies = await Supply.find({ product: productId });
-    const totalSupplied = supplies.reduce((sum: number, s: { totalUnits: number }) => sum + s.totalUnits, 0);
-
-    const completedSales = await Sale.find({
-      "items.product": productId,
-      status: "COMPLETED",
-    });
-    const totalSold = completedSales.reduce((sum: number, sale: { items: Array<{ product: { toString: () => string }; quantity: number }> }) => {
-      const saleItem = sale.items.find((i) => i.product.toString() === productId);
-      return sum + (saleItem?.quantity ?? 0);
-    }, 0);
-
-    const availableStock = totalSupplied - totalSold;
+    const availableStock = await getProductStock(productId, { exerciceId });
     if (quantity > availableStock) {
       const product = await Product.findById(productId);
       return NextResponse.json(
@@ -158,7 +151,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Prix marché + coût unitaire (dernier appro), sinon prix catalogue produit
   const saleItems = await Promise.all(
     items.map(async (item: { productId: string; quantity: number }) => {
       const { unitPrice, unitCost } = await resolveSaleLinePricing(item.productId);
@@ -180,6 +172,7 @@ export async function POST(req: NextRequest) {
     items: saleItems,
     totalAmount,
     status: "PENDING",
+    exercice: exerciceId,
     createdBy: session!.user.id,
   });
 

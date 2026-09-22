@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
 export interface ISupplyDocument extends Document {
+  exercice: Types.ObjectId;
   product: Types.ObjectId;
   lotSize: number;
   lotPrice: number;
@@ -15,6 +16,12 @@ export interface ISupplyDocument extends Document {
 
 const SupplySchema = new Schema<ISupplyDocument>(
   {
+    exercice: {
+      type: Schema.Types.ObjectId,
+      ref: "Exercice",
+      required: [true, "L’exercice est requis"],
+      index: true,
+    },
     product: {
       type: Schema.Types.ObjectId,
       ref: "Product",
@@ -58,6 +65,7 @@ const SupplySchema = new Schema<ISupplyDocument>(
 );
 
 SupplySchema.index({ product: 1 });
+SupplySchema.index({ exercice: 1, product: 1 });
 
 // Auto-calculate derived fields before save
 SupplySchema.pre("save", function (next) {
@@ -66,7 +74,13 @@ SupplySchema.pre("save", function (next) {
   next();
 });
 
+const existingSupply = mongoose.models.Supply as Model<ISupplyDocument> | undefined;
+if (existingSupply && !existingSupply.schema.path("exercice")) {
+  mongoose.deleteModel("Supply");
+}
+
 const Supply: Model<ISupplyDocument> =
-  mongoose.models.Supply || mongoose.model<ISupplyDocument>("Supply", SupplySchema);
+  (mongoose.models.Supply as Model<ISupplyDocument> | undefined) ||
+  mongoose.model<ISupplyDocument>("Supply", SupplySchema);
 
 export default Supply;

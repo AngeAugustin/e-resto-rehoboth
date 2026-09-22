@@ -39,7 +39,15 @@ export function useAppModule(): AppModuleContextValue {
 function readStoredModule(): AppModuleId | null {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    if (value === "bar" || value === "cuisine" || value === "paie" || value === "administration") return value;
+    if (
+      value === "immobilisations" ||
+      value === "bar" ||
+      value === "cuisine" ||
+      value === "paie" ||
+      value === "administration"
+    ) {
+      return value;
+    }
   } catch {
     /* ignore */
   }

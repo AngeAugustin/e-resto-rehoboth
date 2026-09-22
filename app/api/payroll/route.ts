@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { DIRECTION_ROLES } from "@/lib/roles";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import { parsePayrollBonuses, payrollBonusTotal } from "@/lib/payroll";
 import { resolvePayrollBaseSalary } from "@/lib/payroll-server";
 import Payroll from "@/models/Payroll";
@@ -19,14 +20,15 @@ export async function GET(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const url = req.nextUrl;
   const type = url.searchParams.get("type");
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
-  const filter: Record<string, unknown> = {};
-  if (type && TYPES.has(type)) filter.beneficiaryType = type;
-  else filter.beneficiaryType = { $in: [...TYPES] };
+  const extra: Record<string, unknown> = {};
+  if (type && TYPES.has(type)) extra.beneficiaryType = type;
+  else extra.beneficiaryType = { $in: [...TYPES] };
   if (from || to) {
     const paidAt: Record<string, Date> = {};
     if (from) paidAt.$gte = new Date(from);
@@ -35,8 +37,9 @@ export async function GET(req: NextRequest) {
       end.setHours(23, 59, 59, 999);
       paidAt.$lte = end;
     }
-    filter.paidAt = paidAt;
+    extra.paidAt = paidAt;
   }
+  const filter = withExercice(exerciceId, extra);
 
   const [items, totals] = await Promise.all([
     Payroll.find(filter)
@@ -68,6 +71,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const body = await req.json();
   const beneficiaryType = body?.beneficiaryType;
   if (!TYPES.has(beneficiaryType)) {
@@ -114,6 +118,7 @@ export async function POST(req: NextRequest) {
     comment: typeof body?.comment === "string" ? body.comment.trim() : undefined,
     attachmentUrl: typeof body?.attachmentUrl === "string" ? body.attachmentUrl.trim() : undefined,
     jobTitle: body?.jobTitle || undefined,
+    exercice: exerciceId,
     createdBy: session!.user.id,
     isPaid: false,
   };

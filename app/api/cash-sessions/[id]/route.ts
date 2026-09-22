@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId } from "@/lib/exercice";
 import CashSession from "@/models/CashSession";
 import { barCashSessionFilter } from "@/lib/cash-session";
 
@@ -14,8 +15,11 @@ type LeanBarSession = {
   closedAt?: Date;
 };
 
-async function loadBarSession(id: string) {
-  const cashSession = await CashSession.findById(id).lean<LeanBarSession | null>();
+async function loadBarSession(id: string, exerciceId: Types.ObjectId) {
+  const cashSession = await CashSession.findOne({
+    _id: id,
+    ...barCashSessionFilter(exerciceId),
+  }).lean<LeanBarSession | null>();
   if (!cashSession || cashSession.kind === "KITCHEN") return null;
   return cashSession;
 }
@@ -25,11 +29,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
   const body = await req.json();
   const action = String(body?.action ?? "update");
 
-  const cashSession = await loadBarSession(id);
+  const cashSession = await loadBarSession(id, exerciceId);
   if (!cashSession) {
     return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
   }
@@ -41,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const openingFloatRecovered = body?.openingFloatRecovered === true;
     const closedAt = new Date();
     await CashSession.updateOne(
-      { _id: id, ...barCashSessionFilter() },
+      { _id: id, ...barCashSessionFilter(exerciceId) },
       { $set: { status: "CLOSED", closedAt, openingFloatRecovered } }
     );
     return NextResponse.json({ ...cashSession, status: "CLOSED", closedAt, openingFloatRecovered });
@@ -52,7 +57,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Cette session est déjà ouverte." }, { status: 400 });
     }
 
-    const newest = await CashSession.findOne(barCashSessionFilter())
+    const newest = await CashSession.findOne(barCashSessionFilter(exerciceId))
       .sort({ createdAt: -1, _id: -1 })
       .select("_id")
       .lean();
@@ -67,7 +72,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const active = await CashSession.findOne({
-      ...barCashSessionFilter(),
+      ...barCashSessionFilter(exerciceId),
       status: "OPEN",
       _id: { $ne: id },
     })
@@ -81,7 +86,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     await CashSession.updateOne(
-      { _id: id, ...barCashSessionFilter() },
+      { _id: id, ...barCashSessionFilter(exerciceId) },
       { $set: { status: "OPEN" }, $unset: { closedAt: 1, openingFloatRecovered: 1 } }
     );
     return NextResponse.json({
@@ -102,7 +107,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   await CashSession.updateOne(
-    { _id: id, ...barCashSessionFilter() },
+    { _id: id, ...barCashSessionFilter(exerciceId) },
     { $set: { openingFloat } }
   );
   return NextResponse.json({ ...cashSession, openingFloat });
@@ -113,13 +118,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
-  const cashSession = await loadBarSession(id);
+  const cashSession = await loadBarSession(id, exerciceId);
   if (!cashSession) {
     return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
   }
 
-  await CashSession.deleteOne({ _id: id, ...barCashSessionFilter() });
+  await CashSession.deleteOne({ _id: id, ...barCashSessionFilter(exerciceId) });
   return NextResponse.json({ message: "Session supprimée." });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import CashSession from "@/models/CashSession";
 import Sale from "@/models/Sale";
 import Supply from "@/models/Supply";
@@ -11,7 +12,8 @@ export async function GET() {
   if (error) return error;
 
   await connectDB();
-  const sessions = await CashSession.find(barCashSessionFilter())
+  const exerciceId = await getActiveExerciceId();
+  const sessions = await CashSession.find(barCashSessionFilter(exerciceId))
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 })
     .lean();
@@ -23,16 +25,16 @@ export async function GET() {
 
       const createdAt = { $gte: start, $lte: end };
       const [sales, pendingCount] = await Promise.all([
-        Sale.find({ status: "COMPLETED", createdAt })
+        Sale.find(withExercice(exerciceId, { status: "COMPLETED", createdAt }))
           .select("totalAmount")
           .lean<Array<{ totalAmount?: number }>>(),
-        Sale.countDocuments({ status: "PENDING", createdAt }),
+        Sale.countDocuments(withExercice(exerciceId, { status: "PENDING", createdAt })),
       ]);
 
       const totalSales = sales.reduce((sum, sale) => sum + Number(sale.totalAmount ?? 0), 0);
 
       const [suppliesAgg] = await Supply.aggregate<{ total: number }>([
-        { $match: { createdAt: { $gte: start, $lte: end } } },
+        { $match: withExercice(exerciceId, { createdAt: { $gte: start, $lte: end } }) },
         { $group: { _id: null, total: { $sum: "$totalCost" } } },
       ]);
       const totalSupplies = Number(suppliesAgg?.total ?? 0);
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const body = await req.json();
 
   const openingFloat = Number(body?.openingFloat);
@@ -64,7 +67,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Fond de caisse invalide." }, { status: 400 });
   }
 
-  const active = await CashSession.findOne({ ...barCashSessionFilter(), status: "OPEN" }).select("_id").lean();
+  const active = await CashSession.findOne({ ...barCashSessionFilter(exerciceId), status: "OPEN" }).select("_id").lean();
   if (active) {
     return NextResponse.json(
       { error: "Une session est déjà ouverte. Clôturez-la avant d'en ouvrir une nouvelle." },
@@ -79,6 +82,7 @@ export async function POST(req: NextRequest) {
     openingFloat,
     kind: "BAR",
     status: "OPEN",
+    exercice: exerciceId,
     createdBy: session!.user.id,
   });
 

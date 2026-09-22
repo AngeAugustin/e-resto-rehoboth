@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { DIRECTION_ROLES } from "@/lib/roles";
+import { isVersementCategoryName } from "@/lib/versement-category";
 import ExpenseCategory from "@/models/ExpenseCategory";
 import Expense from "@/models/Expense";
 
@@ -11,9 +12,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   await connectDB();
   const { id } = await params;
+  const current = await ExpenseCategory.findById(id);
+  if (!current) return NextResponse.json({ error: "Catégorie introuvable" }, { status: 404 });
+  if (isVersementCategoryName(current.name)) {
+    return NextResponse.json(
+      { error: "La catégorie VERSEMENT est réservée aux immobilisations" },
+      { status: 403 }
+    );
+  }
+
   const body = await req.json();
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   if (!name) return NextResponse.json({ error: "Le nom de la catégorie est requis" }, { status: 400 });
+  if (isVersementCategoryName(name)) {
+    return NextResponse.json(
+      { error: "Le nom VERSEMENT est réservé au système" },
+      { status: 403 }
+    );
+  }
 
   const duplicate = await ExpenseCategory.findOne({ name, _id: { $ne: id } });
   if (duplicate) {
@@ -31,6 +47,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   await connectDB();
   const { id } = await params;
+  const current = await ExpenseCategory.findById(id);
+  if (!current) return NextResponse.json({ error: "Catégorie introuvable" }, { status: 404 });
+  if (isVersementCategoryName(current.name)) {
+    return NextResponse.json(
+      { error: "La catégorie VERSEMENT est réservée aux immobilisations" },
+      { status: 403 }
+    );
+  }
+
   const used = await Expense.exists({ category: id });
   if (used) {
     return NextResponse.json(

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
+import { getProductStock } from "@/lib/inventory";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
 import Sale from "@/models/Sale";
@@ -16,6 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
   const product = await Product.findById(id);
@@ -23,28 +26,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
   }
 
-  // Fetch supply history
-  const supplies = await Supply.find({ product: id })
+  const supplies = await Supply.find(withExercice(exerciceId, { product: id }))
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 });
 
-  // Fetch sales that include this product
-  const sales = await Sale.find({ "items.product": id, status: "COMPLETED" })
+  const sales = await Sale.find(withExercice(exerciceId, { "items.product": id, status: "COMPLETED" }))
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")
     .sort({ createdAt: -1 })
     .limit(50);
 
-  // Calculate stock: total supplied - total sold
-  const totalSupplied = supplies.reduce((sum, s) => sum + s.totalUnits, 0);
-
-  const totalSold = sales.reduce((sum, sale) => {
-    const item = sale.items.find((i) => i.product.toString() === id);
-    return sum + (item?.quantity ?? 0);
-  }, 0);
-
-  const stock = totalSupplied - totalSold;
+  const stock = await getProductStock(id, { exerciceId });
 
   return NextResponse.json({
     product: { ...product.toObject(), stock },

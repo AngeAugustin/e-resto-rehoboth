@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import Sale from "@/models/Sale";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
@@ -122,10 +123,15 @@ export async function GET(request: Request) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
 
   const period = resolvePeriod(new URL(request.url).searchParams);
   const productColl = Product.collection.name;
   const waitressColl = Waitress.collection.name;
+  const completedPeriodMatch = withExercice(exerciceId, {
+    status: "COMPLETED",
+    createdAt: { $gte: period.start, $lte: period.end },
+  });
 
   const [suppliesRows, salesRows, productProfits] = await Promise.all([
     Supply.aggregate<{
@@ -135,7 +141,7 @@ export async function GET(request: Request) {
       totalUnits: number;
       totalCost: number;
     }>([
-      { $match: { createdAt: { $gte: period.start, $lte: period.end } } },
+      { $match: withExercice(exerciceId, { createdAt: { $gte: period.start, $lte: period.end } }) },
       {
         $lookup: {
           from: productColl,
@@ -166,12 +172,7 @@ export async function GET(request: Request) {
       itemsCount: number;
       saleItems: Array<{ productName: string; quantity: number }>;
     }>([
-      {
-        $match: {
-          status: "COMPLETED",
-          createdAt: { $gte: period.start, $lte: period.end },
-        },
-      },
+      { $match: completedPeriodMatch },
       {
         $lookup: {
           from: waitressColl,
@@ -237,12 +238,7 @@ export async function GET(request: Request) {
       { $sort: { createdAt: -1 } },
     ]),
     Sale.aggregate<{ _id: Types.ObjectId; name: string; units: number; revenue: number; profit: number }>([
-      {
-        $match: {
-          status: "COMPLETED",
-          createdAt: { $gte: period.start, $lte: period.end },
-        },
-      },
+      { $match: completedPeriodMatch },
       { $unwind: "$items" },
       {
         $group: {

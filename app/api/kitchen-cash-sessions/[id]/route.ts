@@ -3,6 +3,7 @@ import type { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { OPERATIONS_ROLES } from "@/lib/roles";
+import { getActiveExerciceId } from "@/lib/exercice";
 import CashSession from "@/models/CashSession";
 import {
   canReopenKitchenSessionByDate,
@@ -19,8 +20,11 @@ type LeanKitchenSession = {
   closedAt?: Date;
 };
 
-async function loadKitchenSession(id: string) {
-  const cashSession = await CashSession.findById(id).lean<LeanKitchenSession | null>();
+async function loadKitchenSession(id: string, exerciceId: Types.ObjectId) {
+  const cashSession = await CashSession.findOne({
+    _id: id,
+    ...kitchenCashSessionFilter(exerciceId),
+  }).lean<LeanKitchenSession | null>();
   if (!cashSession || cashSession.kind !== "KITCHEN") return null;
   return cashSession;
 }
@@ -30,11 +34,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
   const body = await req.json();
   const action = String(body?.action ?? "update");
 
-  const cashSession = await loadKitchenSession(id);
+  const cashSession = await loadKitchenSession(id, exerciceId);
   if (!cashSession) {
     return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
   }
@@ -46,7 +51,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const openingFloatRecovered = body?.openingFloatRecovered === true;
     const closedAt = new Date();
     await CashSession.updateOne(
-      { _id: id, ...kitchenCashSessionFilter() },
+      { _id: id, ...kitchenCashSessionFilter(exerciceId) },
       { $set: { status: "CLOSED", closedAt, openingFloatRecovered } }
     );
     return NextResponse.json({ ...cashSession, status: "CLOSED", closedAt, openingFloatRecovered });
@@ -57,7 +62,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Cette session est déjà ouverte." }, { status: 400 });
     }
 
-    const newest = await CashSession.findOne(kitchenCashSessionFilter())
+    const newest = await CashSession.findOne(kitchenCashSessionFilter(exerciceId))
       .sort({ createdAt: -1, _id: -1 })
       .select("_id")
       .lean();
@@ -82,7 +87,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const active = await CashSession.findOne({
-      ...kitchenCashSessionFilter(),
+      ...kitchenCashSessionFilter(exerciceId),
       status: "OPEN",
       _id: { $ne: id },
     })
@@ -96,7 +101,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     await CashSession.updateOne(
-      { _id: id, ...kitchenCashSessionFilter() },
+      { _id: id, ...kitchenCashSessionFilter(exerciceId) },
       { $set: { status: "OPEN" }, $unset: { closedAt: 1, openingFloatRecovered: 1 } }
     );
     return NextResponse.json({
@@ -117,7 +122,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   await CashSession.updateOne(
-    { _id: id, ...kitchenCashSessionFilter() },
+    { _id: id, ...kitchenCashSessionFilter(exerciceId) },
     { $set: { openingFloat } }
   );
   return NextResponse.json({ ...cashSession, openingFloat });
@@ -128,13 +133,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
-  const cashSession = await loadKitchenSession(id);
+  const cashSession = await loadKitchenSession(id, exerciceId);
   if (!cashSession) {
     return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
   }
 
-  await CashSession.deleteOne({ _id: id, ...kitchenCashSessionFilter() });
+  await CashSession.deleteOne({ _id: id, ...kitchenCashSessionFilter(exerciceId) });
   return NextResponse.json({ message: "Session supprimée." });
 }

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
+import { AuthAtmosphere } from "@/components/auth/AuthAtmosphere";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -71,15 +72,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
+    <AuthAtmosphere>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-[400px]"
+        transition={{ duration: 0.45 }}
       >
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8 text-center">
+        <div className="mb-8 flex flex-col items-center text-center">
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
@@ -92,15 +91,14 @@ export default function LoginPage() {
               width={140}
               height={140}
               priority
-              className="h-28 w-28 rounded-full object-contain"
+              className="h-28 w-28 rounded-full object-contain shadow-lg ring-2 ring-white/25"
             />
           </motion.div>
-          <h1 className="text-xl font-bold text-primary sm:text-2xl px-1 leading-snug">{solutionName}</h1>
-          <p className="text-sm text-[#6B7280] mt-1">Connectez-vous à votre espace</p>
+          <h1 className="px-1 text-xl font-bold leading-snug text-white sm:text-2xl">{solutionName}</h1>
+          <p className="mt-1 text-sm text-white/75">Connectez-vous à votre espace</p>
         </div>
 
-        {/* Form */}
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-5 sm:p-6">
+        <div className="rounded-2xl border border-white/20 bg-white/95 p-5 shadow-xl backdrop-blur-md sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email">Adresse email</Label>
@@ -131,9 +129,9 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#6B7280]"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -141,7 +139,7 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Connexion...
                 </>
               ) : (
@@ -152,7 +150,7 @@ export default function LoginPage() {
             <div className="flex justify-center pt-1">
               <Link
                 href="/mot-de-passe-oublie"
-                className="text-sm text-[#6B7280] hover:text-primary transition-colors"
+                className="text-sm text-[#6B7280] transition-colors hover:text-primary"
               >
                 Mot de passe oublié ?
               </Link>
@@ -160,10 +158,10 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-[#9CA3AF] mt-6">
+        <p className="mt-6 text-center text-xs text-white/65">
           Contactez votre administrateur pour obtenir vos accès.
         </p>
       </motion.div>
-    </div>
+    </AuthAtmosphere>
   );
 }

@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { DIRECTION_ROLES } from "@/lib/roles";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import { parsePayrollBonuses, payrollBonusTotal } from "@/lib/payroll";
 import { resolvePayrollBaseSalary } from "@/lib/payroll-server";
 import Payroll from "@/models/Payroll";
@@ -14,8 +15,8 @@ import "@/models/JobTitle";
 
 const TYPES = new Set(["WAITRESS", "KITCHEN_WAITRESS", "COOK", "MANAGER"]);
 
-async function loadPopulated(id: string) {
-  return Payroll.findById(id)
+async function loadPopulated(id: string, exerciceId: Types.ObjectId) {
+  return Payroll.findOne(withExercice(exerciceId, { _id: id }))
     .populate("waitress", "firstName lastName")
     .populate("kitchenWaitress", "firstName lastName")
     .populate("cook", "firstName lastName")
@@ -30,8 +31,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
-  const payroll = await loadPopulated(id);
+  const payroll = await loadPopulated(id, exerciceId);
   if (!payroll) return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
   return NextResponse.json(payroll);
 }
@@ -41,9 +43,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
   const body = await req.json();
-  const payroll = await Payroll.findById(id);
+  const payroll = await Payroll.findOne(withExercice(exerciceId, { _id: id }));
   if (!payroll) return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
 
   if (body?.action === "mark_paid") {
@@ -56,7 +59,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const updateResult = await Payroll.collection.updateOne(
-      { _id: new Types.ObjectId(id) },
+      { _id: new Types.ObjectId(id), exercice: exerciceId },
       { $set: { isPaid: true } }
     );
 
@@ -64,7 +67,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
     }
 
-    const fresh = await loadPopulated(id);
+    const fresh = await loadPopulated(id, exerciceId);
     if (!fresh) return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
     return NextResponse.json({ ...fresh, isPaid: true });
   }
@@ -133,7 +136,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   else payroll.user = new Types.ObjectId(body.personId);
 
   await payroll.save();
-  const fresh = await loadPopulated(id);
+  const fresh = await loadPopulated(id, exerciceId);
   return NextResponse.json(fresh);
 }
 
@@ -142,8 +145,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
-  const payroll = await Payroll.findByIdAndDelete(id);
+  const payroll = await Payroll.findOneAndDelete(withExercice(exerciceId, { _id: id }));
   if (!payroll) return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
   return NextResponse.json({ message: "Fiche de paie supprimée" });
 }

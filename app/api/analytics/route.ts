@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import Sale from "@/models/Sale";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
@@ -144,6 +145,7 @@ export async function GET(request: Request) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
 
   const params = new URL(request.url).searchParams;
   const period = resolvePeriod(params);
@@ -153,6 +155,14 @@ export async function GET(request: Request) {
   const bucketByMonth = period.filter === "year" || period.filter === "semester";
   const bucketFormat = bucketByMonth ? "%Y-%m" : "%Y-%m-%d";
   const productColl = Product.collection.name;
+  const periodMatch = withExercice(exerciceId, {
+    status: "COMPLETED",
+    createdAt: { $gte: period.start, $lte: period.end },
+  });
+  const compareMatch = withExercice(exerciceId, {
+    status: "COMPLETED",
+    createdAt: { $gte: compareStart, $lte: compareEnd },
+  });
 
   const [
     revenueCostByBucket,
@@ -166,12 +176,7 @@ export async function GET(request: Request) {
     soldRows,
   ] = await Promise.all([
     Sale.aggregate<{ _id: string; revenue: number; cost: number }>([
-      {
-        $match: {
-          status: "COMPLETED",
-          createdAt: { $gte: period.start, $lte: period.end },
-        },
-      },
+      { $match: periodMatch },
       { $unwind: "$items" },
       {
         $group: {
@@ -182,12 +187,7 @@ export async function GET(request: Request) {
       },
     ]),
     Sale.aggregate<{ _id: string; sales: number }>([
-      {
-        $match: {
-          status: "COMPLETED",
-          createdAt: { $gte: period.start, $lte: period.end },
-        },
-      },
+      { $match: periodMatch },
       {
         $group: {
           _id: { $dateToString: { format: bucketFormat, date: "$createdAt" } },
@@ -196,12 +196,7 @@ export async function GET(request: Request) {
       },
     ]),
     Sale.aggregate<{ _id: null; revenue: number; cost: number }>([
-      {
-        $match: {
-          status: "COMPLETED",
-          createdAt: { $gte: period.start, $lte: period.end },
-        },
-      },
+      { $match: periodMatch },
       { $unwind: "$items" },
       {
         $group: {
@@ -212,21 +207,11 @@ export async function GET(request: Request) {
       },
     ]),
     Sale.aggregate<{ _id: null; sales: number }>([
-      {
-        $match: {
-          status: "COMPLETED",
-          createdAt: { $gte: period.start, $lte: period.end },
-        },
-      },
+      { $match: periodMatch },
       { $group: { _id: null, sales: { $sum: 1 } } },
     ]),
     Sale.aggregate<{ _id: null; revenue: number; cost: number }>([
-      {
-        $match: {
-          status: "COMPLETED",
-          createdAt: { $gte: compareStart, $lte: compareEnd },
-        },
-      },
+      { $match: compareMatch },
       { $unwind: "$items" },
       {
         $group: {
@@ -237,12 +222,7 @@ export async function GET(request: Request) {
       },
     ]),
     Sale.aggregate<{ _id: null; sales: number }>([
-      {
-        $match: {
-          status: "COMPLETED",
-          createdAt: { $gte: compareStart, $lte: compareEnd },
-        },
-      },
+      { $match: compareMatch },
       { $group: { _id: null, sales: { $sum: 1 } } },
     ]),
     Sale.aggregate<{
@@ -254,7 +234,7 @@ export async function GET(request: Request) {
       units: number;
       margin: number;
     }>([
-      { $match: { status: "COMPLETED", createdAt: { $gte: period.start, $lte: period.end } } },
+      { $match: periodMatch },
       { $unwind: "$items" },
       {
         $group: {
@@ -294,10 +274,11 @@ export async function GET(request: Request) {
       { $sort: { revenue: -1 } },
     ]),
     Supply.aggregate<{ _id: Types.ObjectId; total: number }>([
+      { $match: withExercice(exerciceId) },
       { $group: { _id: "$product", total: { $sum: "$totalUnits" } } },
     ]),
     Sale.aggregate<{ _id: Types.ObjectId; total: number }>([
-      { $match: { status: "COMPLETED", createdAt: { $gte: period.start, $lte: period.end } } },
+      { $match: periodMatch },
       { $unwind: "$items" },
       { $group: { _id: "$items.product", total: { $sum: "$items.quantity" } } },
     ]),

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import Sale from "@/models/Sale";
-import Supply from "@/models/Supply";
 import Product from "@/models/Product";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import { getProductStock } from "@/lib/inventory";
 import { resolveSaleLinePricing } from "@/lib/sale-pricing";
 import { notifyLowStockAfterCompletedSale } from "@/lib/stock-alerts";
@@ -21,9 +21,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
-  const sale = await Sale.findById(id)
+  const sale = await Sale.findOne(withExercice(exerciceId, { _id: id }))
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")
@@ -43,10 +44,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
   const body = await req.json();
 
-  const sale = await Sale.findById(id);
+  const sale = await Sale.findOne(withExercice(exerciceId, { _id: id }));
   if (!sale) {
     return NextResponse.json({ error: "Vente introuvable" }, { status: 404 });
   }
@@ -55,7 +57,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Seules les ventes en attente peuvent être modifiées" }, { status: 400 });
   }
 
-  // Handle close/complete action
   if (body.action === "complete") {
     const { amountPaid, paymentMethod } = body;
     if (paymentMethod !== "CASH" && paymentMethod !== "MOBILE_MONEY") {
@@ -83,23 +84,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
-    // Re-validate stock before completing
     for (const item of sale.items) {
       const productId = item.product.toString();
-      const supplies = await Supply.find({ product: productId });
-      const totalSupplied = supplies.reduce((sum: number, s: { totalUnits: number }) => sum + s.totalUnits, 0);
-
-      const completedSales = await Sale.find({
-        _id: { $ne: id },
-        "items.product": productId,
-        status: "COMPLETED",
-      });
-      const totalSold = completedSales.reduce((sum: number, s: { items: Array<{ product: { toString: () => string }; quantity: number }> }) => {
-        const si = s.items.find((i) => i.product.toString() === productId);
-        return sum + (si?.quantity ?? 0);
-      }, 0);
-
-      if (item.quantity > totalSupplied - totalSold) {
+      const availableStock = await getProductStock(productId, { excludeSaleId: id, exerciceId });
+      if (item.quantity > availableStock) {
         const product = await Product.findById(productId);
         return NextResponse.json(
           { error: `Stock insuffisant pour ${product?.name}` },
@@ -123,7 +111,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const lowStockLines = await Promise.all(
       sale.items.map(async (item) => {
         const productId = item.product.toString();
-        const previousStock = await getProductStock(productId, { excludeSaleId: saleId });
+        const previousStock = await getProductStock(productId, { excludeSaleId: saleId, exerciceId });
         const newStock = previousStock - item.quantity;
         const productDoc = await Product.findById(productId)
           .select("name category image")
@@ -140,7 +128,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     );
     await notifyLowStockAfterCompletedSale({ saleId, lines: lowStockLines });
   } else {
-    // Update pending sale (waitress, tables, items)
     const { waitressId, items } = body;
     const bodyTouchesTables =
       Object.prototype.hasOwnProperty.call(body, "tableIds") ||
@@ -151,7 +138,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (!parsed?.length) {
         return NextResponse.json({ error: "Au moins une table est requise" }, { status: 400 });
       }
-      const tableConflict = await Sale.findOne(pendingSaleUsesAnyTableFilter(parsed, id));
+      const tableConflict = await Sale.findOne(
+        withExercice(exerciceId, pendingSaleUsesAnyTableFilter(parsed, id) as Record<string, unknown>)
+      );
       if (tableConflict) {
         return NextResponse.json(
           {
@@ -170,22 +159,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (items && items.length > 0) {
       for (const item of items as Array<{ productId: string; quantity: number }>) {
         const { productId, quantity } = item;
-        const supplies = await Supply.find({ product: productId });
-        const totalSupplied = supplies.reduce((sum: number, s: { totalUnits: number }) => sum + s.totalUnits, 0);
-
-        const completedSales = await Sale.find({
-          "items.product": productId,
-          status: "COMPLETED",
-        });
-        const totalSold = completedSales.reduce(
-          (sum: number, s: { items: Array<{ product: { toString: () => string }; quantity: number }> }) => {
-            const saleItem = s.items.find((i) => i.product.toString() === productId);
-            return sum + (saleItem?.quantity ?? 0);
-          },
-          0
-        );
-
-        const availableStock = totalSupplied - totalSold;
+        const availableStock = await getProductStock(productId, { exerciceId });
         if (quantity > availableStock) {
           const product = await Product.findById(productId);
           return NextResponse.json(
@@ -214,7 +188,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await sale.save();
   }
 
-  const fresh = await Sale.findById(id)
+  const fresh = await Sale.findOne(withExercice(exerciceId, { _id: id }))
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")
@@ -234,9 +208,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
-  const sale = await Sale.findById(id);
+  const sale = await Sale.findOne(withExercice(exerciceId, { _id: id }));
   if (!sale) {
     return NextResponse.json({ error: "Vente introuvable" }, { status: 404 });
   }

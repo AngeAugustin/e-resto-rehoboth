@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
 export interface IExpenseDocument extends Document {
+  exercice: Types.ObjectId;
   label: string;
   category: Types.ObjectId;
   amount: number;
@@ -8,6 +9,7 @@ export interface IExpenseDocument extends Document {
   paymentMethod: Types.ObjectId;
   comment?: string;
   attachmentUrl?: string;
+  immobilisation?: Types.ObjectId;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -15,6 +17,12 @@ export interface IExpenseDocument extends Document {
 
 const ExpenseSchema = new Schema<IExpenseDocument>(
   {
+    exercice: {
+      type: Schema.Types.ObjectId,
+      ref: "Exercice",
+      required: [true, "L’exercice est requis"],
+      index: true,
+    },
     label: {
       type: String,
       required: [true, "Le libellé est requis"],
@@ -47,6 +55,10 @@ const ExpenseSchema = new Schema<IExpenseDocument>(
       type: String,
       trim: true,
     },
+    immobilisation: {
+      type: Schema.Types.ObjectId,
+      ref: "Immobilisation",
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -58,6 +70,16 @@ const ExpenseSchema = new Schema<IExpenseDocument>(
 
 ExpenseSchema.index({ date: -1 });
 ExpenseSchema.index({ category: 1, date: -1 });
+ExpenseSchema.index({ immobilisation: 1, date: -1 });
+ExpenseSchema.index({ exercice: 1, date: -1 });
+
+const existingExpense = mongoose.models.Expense as Model<IExpenseDocument> | undefined;
+if (
+  (existingExpense && !existingExpense.schema.path("immobilisation")) ||
+  (existingExpense && !existingExpense.schema.path("exercice"))
+) {
+  mongoose.deleteModel("Expense");
+}
 
 const Expense: Model<IExpenseDocument> =
   (mongoose.models.Expense as Model<IExpenseDocument> | undefined) ||

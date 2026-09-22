@@ -4,6 +4,7 @@ const GERANT_FORBIDDEN_PREFIXES = [
   "/accounting",
   "/payroll",
   "/expenses",
+  "/immobilisations",
   "/users",
   "/settings",
   "/guide",

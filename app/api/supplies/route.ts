@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import { isStandardSupplyLotSize, isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
@@ -10,7 +11,8 @@ export async function GET() {
   if (error) return error;
 
   await connectDB();
-  const supplies = await Supply.find()
+  const exerciceId = await getActiveExerciceId();
+  const supplies = await Supply.find(withExercice(exerciceId))
     .populate("product", "name image marketSellingPrice quantiteStandardPack prixCasier")
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 });
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const body = await req.json();
 
   /** Approvisionnement multiple : { items: [...] } */
@@ -104,6 +107,7 @@ export async function POST(req: NextRequest) {
           marketSellingPrice: item.marketSellingPrice,
           totalUnits,
           totalCost,
+          exercice: exerciceId,
           createdBy: session!.user.id,
         });
         await supply.save();
@@ -168,6 +172,7 @@ export async function POST(req: NextRequest) {
     marketSellingPrice: m,
     totalUnits,
     totalCost,
+    exercice: exerciceId,
     createdBy: session!.user.id,
   });
 

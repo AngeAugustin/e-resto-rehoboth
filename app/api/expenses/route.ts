@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { OPERATIONS_ROLES } from "@/lib/roles";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import Expense from "@/models/Expense";
 import "@/models/ExpenseCategory";
 import "@/models/ExpensePaymentMethod";
@@ -13,13 +14,14 @@ export async function GET(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const url = req.nextUrl;
   const category = url.searchParams.get("category");
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
-  const filter: Record<string, unknown> = {};
-  if (category) filter.category = category;
+  const extra: Record<string, unknown> = {};
+  if (category) extra.category = category;
   if (from || to) {
     const date: Record<string, Date> = {};
     if (from) date.$gte = new Date(from);
@@ -28,8 +30,9 @@ export async function GET(req: NextRequest) {
       end.setHours(23, 59, 59, 999);
       date.$lte = end;
     }
-    filter.date = date;
+    extra.date = date;
   }
+  const filter = withExercice(exerciceId, extra);
 
   const [items, totals] = await Promise.all([
     Expense.find(filter)
@@ -58,6 +61,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const body = await req.json();
   const label = typeof body?.label === "string" ? body.label.trim() : "";
   const amount = Number(body?.amount);
@@ -84,6 +88,7 @@ export async function POST(req: NextRequest) {
     paymentMethod: new Types.ObjectId(paymentMethod),
     comment: typeof body?.comment === "string" ? body.comment.trim() : undefined,
     attachmentUrl: typeof body?.attachmentUrl === "string" ? body.attachmentUrl.trim() : undefined,
+    exercice: exerciceId,
     createdBy: session!.user.id,
   });
   await expense.populate("category", "name");

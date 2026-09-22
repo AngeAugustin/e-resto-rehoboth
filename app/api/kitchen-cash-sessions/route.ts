@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { OPERATIONS_ROLES } from "@/lib/roles";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import CashSession from "@/models/CashSession";
 import KitchenOrder from "@/models/KitchenOrder";
 import { buildCashSessionName, kitchenCashSessionFilter } from "@/lib/cash-session";
@@ -11,7 +12,8 @@ export async function GET() {
   if (error) return error;
 
   await connectDB();
-  const sessions = await CashSession.find(kitchenCashSessionFilter())
+  const exerciceId = await getActiveExerciceId();
+  const sessions = await CashSession.find(kitchenCashSessionFilter(exerciceId))
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 })
     .lean();
@@ -23,10 +25,10 @@ export async function GET() {
 
       const createdAt = { $gte: start, $lte: end };
       const [orders, pendingCount] = await Promise.all([
-        KitchenOrder.find({ status: "COMPLETED", createdAt })
+        KitchenOrder.find(withExercice(exerciceId, { status: "COMPLETED", createdAt }))
           .select("totalAmount")
           .lean<Array<{ totalAmount?: number }>>(),
-        KitchenOrder.countDocuments({ status: "PENDING", createdAt }),
+        KitchenOrder.countDocuments(withExercice(exerciceId, { status: "PENDING", createdAt })),
       ]);
 
       const totalSales = orders.reduce((sum, order) => sum + Number(order.totalAmount ?? 0), 0);
@@ -51,6 +53,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const body = await req.json();
 
   const openingFloat = Number(body?.openingFloat);
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Fond de caisse invalide." }, { status: 400 });
   }
 
-  const active = await CashSession.findOne({ ...kitchenCashSessionFilter(), status: "OPEN" })
+  const active = await CashSession.findOne({ ...kitchenCashSessionFilter(exerciceId), status: "OPEN" })
     .select("_id")
     .lean();
   if (active) {
@@ -75,6 +78,7 @@ export async function POST(req: NextRequest) {
     openingFloat,
     kind: "KITCHEN",
     status: "OPEN",
+    exercice: exerciceId,
     createdBy: session!.user.id,
   });
 

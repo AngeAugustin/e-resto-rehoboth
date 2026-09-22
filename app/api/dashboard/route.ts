@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import Sale from "@/models/Sale";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
@@ -16,6 +17,7 @@ export async function GET() {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
 
   const today = startOfDay(new Date());
   const weekStart = startOfDay(subDays(new Date(), 6));
@@ -32,11 +34,11 @@ export async function GET() {
     settingsDoc,
   ] = await Promise.all([
     Sale.aggregate<{ revenue: number; count: number }>([
-      { $match: { status: "COMPLETED", createdAt: { $gte: today } } },
+      { $match: withExercice(exerciceId, { status: "COMPLETED", createdAt: { $gte: today } }) },
       { $group: { _id: null, revenue: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
     ]),
     Sale.aggregate<{ _id: string; revenue: number }>([
-      { $match: { status: "COMPLETED", createdAt: { $gte: weekStart } } },
+      { $match: withExercice(exerciceId, { status: "COMPLETED", createdAt: { $gte: weekStart } }) },
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
@@ -45,7 +47,7 @@ export async function GET() {
       },
     ]),
     Sale.aggregate<{ name: string; sold: number; revenue: number }>([
-      { $match: { status: "COMPLETED" } },
+      { $match: withExercice(exerciceId, { status: "COMPLETED" }) },
       { $unwind: "$items" },
       {
         $group: {
@@ -75,15 +77,16 @@ export async function GET() {
       },
     ]),
     Supply.aggregate<{ _id: Types.ObjectId; total: number }>([
+      { $match: withExercice(exerciceId) },
       { $group: { _id: "$product", total: { $sum: "$totalUnits" } } },
     ]),
     Sale.aggregate<{ _id: Types.ObjectId; total: number }>([
-      { $match: { status: "COMPLETED" } },
+      { $match: withExercice(exerciceId, { status: "COMPLETED" }) },
       { $unwind: "$items" },
       { $group: { _id: "$items.product", total: { $sum: "$items.quantity" } } },
     ]),
     Product.find({}, { _id: 1, name: 1, image: 1, marketSellingPrice: 1 }).lean(),
-    Sale.find()
+    Sale.find(withExercice(exerciceId))
       .populate("waitress", "firstName lastName")
       .populate("tables", "number name")
       .populate("table", "number name")

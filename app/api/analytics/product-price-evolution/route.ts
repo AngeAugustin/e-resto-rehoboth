@@ -4,6 +4,7 @@ import { fr } from "date-fns/locale";
 import { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
 
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const product = await Product.findById(productId)
     .select("name marketSellingPrice")
     .lean<{ name: string; marketSellingPrice?: number } | null>();
@@ -26,7 +28,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
   }
 
-  const supplies = await Supply.find({ product: productId })
+  const supplies = await Supply.find(withExercice(exerciceId, { product: productId }))
     .select("marketSellingPrice createdAt")
     .sort({ createdAt: 1 })
     .lean<Array<{ marketSellingPrice: number; createdAt: Date }>>();

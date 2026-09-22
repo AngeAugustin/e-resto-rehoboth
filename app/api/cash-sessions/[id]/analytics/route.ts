@@ -3,6 +3,8 @@ import { format } from "date-fns";
 import type { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
+import { barCashSessionFilter } from "@/lib/cash-session";
 import CashSession from "@/models/CashSession";
 import Sale from "@/models/Sale";
 import Product from "@/models/Product";
@@ -14,9 +16,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
-  const cashSession = await CashSession.findById(id).lean<{
+  const cashSession = await CashSession.findOne({
+    _id: id,
+    ...barCashSessionFilter(exerciceId),
+  }).lean<{
     _id: Types.ObjectId;
     name: string;
     createdAt: Date;
@@ -40,7 +46,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       totalUnits: number;
       totalCost: number;
     }>([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
+      { $match: withExercice(exerciceId, { createdAt: { $gte: start, $lte: end } }) },
       {
         $lookup: {
           from: productColl,
@@ -72,10 +78,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       saleItems: Array<{ productName: string; quantity: number }>;
     }>([
       {
-        $match: {
+        $match: withExercice(exerciceId, {
           status: "COMPLETED",
           createdAt: { $gte: start, $lte: end },
-        },
+        }),
       },
       {
         $lookup: {
@@ -143,10 +149,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     ]),
     Sale.aggregate<{ _id: Types.ObjectId; name: string; units: number; revenue: number; profit: number }>([
       {
-        $match: {
+        $match: withExercice(exerciceId, {
           status: "COMPLETED",
           createdAt: { $gte: start, $lte: end },
-        },
+        }),
       },
       { $unwind: "$items" },
       {

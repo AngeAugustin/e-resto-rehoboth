@@ -1,5 +1,7 @@
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
+import type { Types } from "mongoose";
 
 export interface SaleLinePricing {
   /** Prix unitaire marché : fiche produit */
@@ -11,8 +13,12 @@ export interface SaleLinePricing {
 /**
  * Détermine le prix de vente et le coût unitaire pour une ligne de vente.
  */
-export async function resolveSaleLinePricing(productId: string): Promise<SaleLinePricing> {
-  const latest = await Supply.findOne({ product: productId })
+export async function resolveSaleLinePricing(
+  productId: string,
+  exerciceId?: string | Types.ObjectId
+): Promise<SaleLinePricing> {
+  const eid = exerciceId ?? (await getActiveExerciceId());
+  const latest = await Supply.findOne(withExercice(eid, { product: productId }))
     .sort({ createdAt: -1 })
     .select("totalCost totalUnits")
     .lean<{ totalCost: number; totalUnits: number } | null>();

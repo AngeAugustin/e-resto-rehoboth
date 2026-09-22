@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import { isValidTicketQuery, normalizeTicketInput, saleTicketDisplayId, ticketMatchFilter } from "@/lib/sale-ticket-id";
 import Sale from "@/models/Sale";
 import "@/models/Waitress";
@@ -25,7 +26,8 @@ export async function GET(req: NextRequest) {
   }
 
   await connectDB();
-  const matches = await Sale.find(filter)
+  const exerciceId = await getActiveExerciceId();
+  const matches = await Sale.find(withExercice(exerciceId, filter))
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")

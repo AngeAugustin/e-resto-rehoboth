@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import { isValidTicketQuery, normalizeTicketInput, saleTicketDisplayId, ticketMatchFilter } from "@/lib/sale-ticket-id";
 import KitchenOrder from "@/models/KitchenOrder";
 import "@/models/Cook";
@@ -27,7 +28,8 @@ export async function GET(req: NextRequest) {
   }
 
   await connectDB();
-  const matches = await KitchenOrder.find(filter)
+  const exerciceId = await getActiveExerciceId();
+  const matches = await KitchenOrder.find(withExercice(exerciceId, filter))
     .populate("cook", "firstName lastName photo")
     .populate("kitchenWaitress", "firstName lastName phone")
     .populate("plate", "number")

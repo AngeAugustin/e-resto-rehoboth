@@ -300,6 +300,18 @@ export interface IExpense {
   paymentMethod: IExpensePaymentMethod | string;
   comment?: string;
   attachmentUrl?: string;
+  immobilisation?: IImmobilisation | string;
+  createdBy: IUser | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IImmobilisation {
+  _id: string;
+  name: string;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
   createdBy: IUser | string;
   createdAt: string;
   updatedAt: string;
@@ -313,6 +325,19 @@ export interface IAccountingPeriod {
   createdBy: IUser | string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface IExercice {
+  _id: string;
+  name: string;
+  startedAt: string;
+  closedAt?: string;
+  isActive: boolean;
+  openingBalance: number;
+  note?: string;
+  createdBy?: IUser | string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type AccountingMovementKind = "SUPPLY" | "EXPENSE";

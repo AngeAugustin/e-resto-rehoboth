@@ -10,6 +10,7 @@ export interface ISaleItemDocument {
 }
 
 export interface ISaleDocument extends Document {
+  exercice: Types.ObjectId;
   waitress: Types.ObjectId;
   /** Ancien schéma mono-table (migration automatique vers `tables`) */
   table?: Types.ObjectId;
@@ -58,6 +59,12 @@ const SaleItemSchema = new Schema<ISaleItemDocument>(
 
 const SaleSchema = new Schema<ISaleDocument>(
   {
+    exercice: {
+      type: Schema.Types.ObjectId,
+      ref: "Exercice",
+      required: [true, "L’exercice est requis"],
+      index: true,
+    },
     waitress: {
       type: Schema.Types.ObjectId,
       ref: "Waitress",
@@ -133,10 +140,13 @@ SaleSchema.pre("save", function (next) {
 });
 
 SaleSchema.index({ status: 1, createdAt: -1 });
+SaleSchema.index({ exercice: 1, status: 1, createdAt: -1 });
 
 const existingModel = mongoose.models.Sale as Model<ISaleDocument> | undefined;
 
-if (existingModel) {
+if (existingModel && !existingModel.schema.path("exercice")) {
+  mongoose.deleteModel("Sale");
+} else if (existingModel) {
   const statusPath = existingModel.schema.path("status") as
     | (mongoose.SchemaType & { options?: { enum?: string[] } })
     | undefined;
@@ -150,6 +160,8 @@ if (existingModel) {
   }
 }
 
-const Sale: Model<ISaleDocument> = existingModel || mongoose.model<ISaleDocument>("Sale", SaleSchema);
+const Sale: Model<ISaleDocument> =
+  (mongoose.models.Sale as Model<ISaleDocument> | undefined) ||
+  mongoose.model<ISaleDocument>("Sale", SaleSchema);
 
 export default Sale;

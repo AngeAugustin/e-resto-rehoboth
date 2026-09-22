@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, ChefHat, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { AuthAtmosphere } from "@/components/auth/AuthAtmosphere";
+import { DEFAULT_LOGO_URL } from "@/lib/app-settings";
 
 type Step = "email" | "otp" | "password";
 
@@ -21,6 +25,17 @@ export default function ForgotPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const { data: publicSettings } = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/public-settings");
+      if (!res.ok) return { logoUrl: DEFAULT_LOGO_URL };
+      return (await res.json()) as { logoUrl?: string };
+    },
+    staleTime: 60 * 1000,
+  });
+  const logoSrc = publicSettings?.logoUrl || DEFAULT_LOGO_URL;
 
   const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +142,6 @@ export default function ForgotPasswordPage() {
         title: "Mot de passe mis à jour",
         description: typeof data.message === "string" ? data.message : "Vous pouvez vous connecter.",
       });
-      // Navigation complète : évite un cache client/webpack incohérent après le flux OTP / reset.
       window.location.assign("/login");
     } finally {
       setIsLoading(false);
@@ -135,31 +149,37 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
+    <AuthAtmosphere>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-[400px]"
       >
-        <div className="flex flex-col items-center mb-8">
+        <div className="mb-8 flex flex-col items-center text-center">
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.3 }}
-            className="w-12 h-12 rounded-2xl bg-[#0D0D0D] flex items-center justify-center mb-4"
+            className="mb-4"
           >
-            <ChefHat className="w-6 h-6 text-white" />
+            <Image
+              src={logoSrc}
+              alt="Logo Rehoboth - Fleur de Dieu"
+              width={140}
+              height={140}
+              priority
+              className="h-28 w-28 rounded-full object-contain shadow-lg ring-2 ring-white/25"
+            />
           </motion.div>
-          <h1 className="text-2xl font-bold text-[#0D0D0D]">Mot de passe oublié</h1>
-          <p className="text-sm text-[#6B7280] mt-1 text-center">
+          <h1 className="text-2xl font-bold text-white">Mot de passe oublié</h1>
+          <p className="mt-1 text-center text-sm text-white/75">
             {step === "email" && "Indiquez votre email pour recevoir un code à 6 chiffres."}
             {step === "otp" && "Saisissez le code reçu par email (valide 15 minutes)."}
             {step === "password" && "Définissez votre nouveau mot de passe."}
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-6">
+        <div className="rounded-2xl border border-white/20 bg-white/95 p-6 shadow-xl backdrop-blur-md">
           {step === "email" && (
             <form onSubmit={handleRequestCode} className="space-y-4">
               <div className="space-y-1.5">
@@ -177,7 +197,7 @@ export default function ForgotPasswordPage() {
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Envoi...
                   </>
                 ) : (
@@ -200,14 +220,14 @@ export default function ForgotPasswordPage() {
                   placeholder="000000"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="text-center text-lg tracking-[0.35em] font-mono"
+                  className="text-center font-mono text-lg tracking-[0.35em]"
                   required
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Vérification...
                   </>
                 ) : (
@@ -247,9 +267,9 @@ export default function ForgotPasswordPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#6B7280]"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -270,16 +290,16 @@ export default function ForgotPasswordPage() {
                   <button
                     type="button"
                     onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#6B7280]"
                   >
-                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Enregistrement...
                   </>
                 ) : (
@@ -293,13 +313,13 @@ export default function ForgotPasswordPage() {
         <div className="mt-6 text-center">
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-[#0D0D0D] transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-white/75 transition-colors hover:text-white"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             Retour à la connexion
           </Link>
         </div>
       </motion.div>
-    </div>
+    </AuthAtmosphere>
   );
 }

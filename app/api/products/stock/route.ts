@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
 import Sale from "@/models/Sale";
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
 
   const activeOnly =
     req.nextUrl.searchParams.get("activeOnly") === "1" ||
@@ -25,10 +27,11 @@ export async function GET(req: NextRequest) {
       .sort({ name: 1 })
       .lean(),
     Supply.aggregate<{ _id: Types.ObjectId; total: number }>([
+      { $match: withExercice(exerciceId) },
       { $group: { _id: "$product", total: { $sum: "$totalUnits" } } },
     ]),
     Sale.aggregate<{ _id: Types.ObjectId; total: number }>([
-      { $match: { status: "COMPLETED" } },
+      { $match: withExercice(exerciceId, { status: "COMPLETED" }) },
       { $unwind: "$items" },
       {
         $group: {
@@ -42,6 +45,7 @@ export async function GET(req: NextRequest) {
       totalCost: number;
       totalUnits: number;
     }>([
+      { $match: withExercice(exerciceId) },
       { $sort: { createdAt: -1 } },
       {
         $group: {

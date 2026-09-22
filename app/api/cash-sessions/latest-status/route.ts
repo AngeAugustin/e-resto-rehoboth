@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId } from "@/lib/exercice";
 import CashSession from "@/models/CashSession";
 import { barCashSessionFilter } from "@/lib/cash-session";
 
@@ -9,7 +10,8 @@ export async function GET() {
   if (error) return error;
 
   await connectDB();
-  const latest = await CashSession.findOne(barCashSessionFilter()).sort({ createdAt: -1 }).select("status name createdAt").lean<{
+  const exerciceId = await getActiveExerciceId();
+  const latest = await CashSession.findOne(barCashSessionFilter(exerciceId)).sort({ createdAt: -1 }).select("status name createdAt").lean<{
     _id: unknown;
     status: "OPEN" | "CLOSED";
     name: string;

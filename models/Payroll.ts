@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model, Types } from "mongoose";
 export type PayrollBeneficiaryType = "WAITRESS" | "KITCHEN_WAITRESS" | "COOK" | "MANAGER";
 
 export interface IPayrollDocument extends Document {
+  exercice: Types.ObjectId;
   beneficiaryType: PayrollBeneficiaryType;
   waitress?: Types.ObjectId;
   kitchenWaitress?: Types.ObjectId;
@@ -33,6 +34,12 @@ export interface IPayrollDocument extends Document {
 
 const PayrollSchema = new Schema<IPayrollDocument>(
   {
+    exercice: {
+      type: Schema.Types.ObjectId,
+      ref: "Exercice",
+      required: [true, "L’exercice est requis"],
+      index: true,
+    },
     beneficiaryType: {
       type: String,
       enum: ["WAITRESS", "KITCHEN_WAITRESS", "COOK", "MANAGER"],
@@ -108,6 +115,7 @@ const PayrollSchema = new Schema<IPayrollDocument>(
 
 PayrollSchema.index({ paidAt: -1 });
 PayrollSchema.index({ beneficiaryType: 1, paidAt: -1 });
+PayrollSchema.index({ exercice: 1, paidAt: -1 });
 
 const existingPayroll = mongoose.models.Payroll as Model<IPayrollDocument> | undefined;
 if (
@@ -117,6 +125,7 @@ if (
   (existingPayroll && !existingPayroll.schema.path("kitchenWaitress")) ||
   (existingPayroll && !existingPayroll.schema.path("isPaid")) ||
   (existingPayroll && !existingPayroll.schema.path("promoter")) ||
+  (existingPayroll && !existingPayroll.schema.path("exercice")) ||
   (existingPayroll &&
     !((existingPayroll.schema.path("beneficiaryType") as { enumValues?: string[] } | undefined)?.enumValues?.includes(
       "KITCHEN_WAITRESS"

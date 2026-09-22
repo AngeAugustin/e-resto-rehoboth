@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import { isStandardSupplyLotSize, isValidSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
@@ -10,6 +11,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
   const body = await req.json();
   const { productId, lotSize, lotPrice, numberOfLots, marketSellingPrice } = body;
@@ -18,7 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Tous les champs sont requis" }, { status: 400 });
   }
 
-  const supply = await Supply.findById(id);
+  const supply = await Supply.findOne(withExercice(exerciceId, { _id: id }));
   if (!supply) {
     return NextResponse.json({ error: "Approvisionnement introuvable" }, { status: 404 });
   }
@@ -65,14 +67,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
-  const supply = await Supply.findById(id);
+  const supply = await Supply.findOneAndDelete(withExercice(exerciceId, { _id: id }));
   if (!supply) {
     return NextResponse.json({ error: "Approvisionnement introuvable" }, { status: 404 });
   }
-
-  await Supply.findByIdAndDelete(id);
 
   return NextResponse.json({ message: "Approvisionnement supprimé" });
 }

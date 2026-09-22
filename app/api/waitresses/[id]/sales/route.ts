@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import Sale from "@/models/Sale";
 import Waitress from "@/models/Waitress";
 import "@/models/RestaurantTable";
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
   const waitress = await Waitress.findById(id).select("_id");
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Serveuse introuvable" }, { status: 404 });
   }
 
-  const sales = await Sale.find({ waitress: id })
+  const sales = await Sale.find(withExercice(exerciceId, { waitress: id }))
     .populate("waitress", "firstName lastName")
     .populate("tables", "number name")
     .populate("table", "number name")

@@ -1,3 +1,5 @@
+import type { Types } from "mongoose";
+
 const WEEKDAYS = [
   "Dimanche",
   "Lundi",
@@ -33,16 +35,25 @@ export function buildCashSessionName(date: Date, kind: "BAR" | "KITCHEN" = "BAR"
 }
 
 /** Sessions bar : champ `kind` BAR, ou documents historiques sans champ. */
-export function barCashSessionFilter(): Record<string, unknown> {
-  return { $or: [{ kind: "BAR" }, { kind: { $exists: false } }, { kind: null }] };
+export function barCashSessionFilter(exerciceId?: string | Types.ObjectId): Record<string, unknown> {
+  const filter: Record<string, unknown> = {
+    $or: [{ kind: "BAR" }, { kind: { $exists: false } }, { kind: null }],
+  };
+  if (exerciceId) filter.exercice = exerciceId;
+  return filter;
 }
 
-export function kitchenCashSessionFilter(): Record<string, unknown> {
-  return { kind: "KITCHEN" };
+export function kitchenCashSessionFilter(exerciceId?: string | Types.ObjectId): Record<string, unknown> {
+  const filter: Record<string, unknown> = { kind: "KITCHEN" };
+  if (exerciceId) filter.exercice = exerciceId;
+  return filter;
 }
 
-export function cashSessionKindFilter(kind: "BAR" | "KITCHEN"): Record<string, unknown> {
-  return kind === "KITCHEN" ? kitchenCashSessionFilter() : barCashSessionFilter();
+export function cashSessionKindFilter(
+  kind: "BAR" | "KITCHEN",
+  exerciceId?: string | Types.ObjectId
+): Record<string, unknown> {
+  return kind === "KITCHEN" ? kitchenCashSessionFilter(exerciceId) : barCashSessionFilter(exerciceId);
 }
 
 /**

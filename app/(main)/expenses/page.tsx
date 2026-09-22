@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { isVersementCategoryName } from "@/lib/versement-category";
 import type { IExpense, IExpenseCategory, IExpensePaymentMethod } from "@/types";
 
 export default function ExpensesPage() {
@@ -201,7 +202,9 @@ export default function ExpensesPage() {
               <Label>Catégorie</Label>
               <select className="flex h-10 w-full rounded-md border px-3 text-sm" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required>
                 <option value="">Sélectionner</option>
-                {(categories ?? []).map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+                {(categories ?? [])
+                  .filter((c) => !isVersementCategoryName(c.name))
+                  .map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-2">

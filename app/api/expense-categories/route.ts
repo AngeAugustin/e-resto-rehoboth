@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { DIRECTION_ROLES, OPERATIONS_ROLES } from "@/lib/roles";
+import { isVersementCategoryName } from "@/lib/versement-category";
 import ExpenseCategory from "@/models/ExpenseCategory";
 
 export async function GET() {
@@ -21,6 +22,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   if (!name) return NextResponse.json({ error: "Le nom de la catégorie est requis" }, { status: 400 });
+  if (isVersementCategoryName(name)) {
+    return NextResponse.json(
+      { error: "Le nom VERSEMENT est réservé au système" },
+      { status: 403 }
+    );
+  }
 
   const existing = await ExpenseCategory.findOne({ name });
   if (existing) {

@@ -4,6 +4,8 @@ import type { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { DIRECTION_ROLES } from "@/lib/roles";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
+import { kitchenCashSessionFilter } from "@/lib/cash-session";
 import CashSession from "@/models/CashSession";
 import KitchenOrder from "@/models/KitchenOrder";
 import Menu from "@/models/Menu";
@@ -14,9 +16,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
-  const cashSession = await CashSession.findById(id).lean<{
+  const cashSession = await CashSession.findOne({
+    _id: id,
+    ...kitchenCashSessionFilter(exerciceId),
+  }).lean<{
     _id: Types.ObjectId;
     name: string;
     kind?: string;
@@ -45,10 +51,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       saleItems: Array<{ productName: string; quantity: number }>;
     }>([
       {
-        $match: {
+        $match: withExercice(exerciceId, {
           status: "COMPLETED",
           createdAt: { $gte: start, $lte: end },
-        },
+        }),
       },
       {
         $lookup: {
@@ -116,10 +122,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     ]),
     KitchenOrder.aggregate<{ _id: Types.ObjectId; name: string; units: number; revenue: number; profit: number }>([
       {
-        $match: {
+        $match: withExercice(exerciceId, {
           status: "COMPLETED",
           createdAt: { $gte: start, $lte: end },
-        },
+        }),
       },
       { $unwind: "$items" },
       {

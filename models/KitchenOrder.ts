@@ -8,6 +8,7 @@ export interface IKitchenOrderItemDocument {
 }
 
 export interface IKitchenOrderDocument extends Document {
+  exercice: Types.ObjectId;
   cook: Types.ObjectId;
   kitchenWaitress?: Types.ObjectId;
   plate: Types.ObjectId;
@@ -50,6 +51,12 @@ const KitchenOrderItemSchema = new Schema<IKitchenOrderItemDocument>(
 
 const KitchenOrderSchema = new Schema<IKitchenOrderDocument>(
   {
+    exercice: {
+      type: Schema.Types.ObjectId,
+      ref: "Exercice",
+      required: [true, "L’exercice est requis"],
+      index: true,
+    },
     cook: {
       type: Schema.Types.ObjectId,
       ref: "Cook",
@@ -108,18 +115,25 @@ const KitchenOrderSchema = new Schema<IKitchenOrderDocument>(
 
 KitchenOrderSchema.index({ status: 1, createdAt: -1 });
 KitchenOrderSchema.index({ plate: 1, status: 1 });
-
 KitchenOrderSchema.index({ kitchenWaitress: 1, createdAt: -1 });
+KitchenOrderSchema.index({ exercice: 1, status: 1, createdAt: -1 });
 
 const existingKitchenOrder = mongoose.models.KitchenOrder as Model<IKitchenOrderDocument> | undefined;
-if (existingKitchenOrder && !existingKitchenOrder.schema.path("kitchenWaitress")) {
-  existingKitchenOrder.schema.add({
-    kitchenWaitress: { type: Schema.Types.ObjectId, ref: "KitchenWaitress" },
-  });
+if (
+  (existingKitchenOrder && !existingKitchenOrder.schema.path("kitchenWaitress")) ||
+  (existingKitchenOrder && !existingKitchenOrder.schema.path("exercice"))
+) {
+  if (existingKitchenOrder && !existingKitchenOrder.schema.path("exercice")) {
+    mongoose.deleteModel("KitchenOrder");
+  } else if (existingKitchenOrder && !existingKitchenOrder.schema.path("kitchenWaitress")) {
+    existingKitchenOrder.schema.add({
+      kitchenWaitress: { type: Schema.Types.ObjectId, ref: "KitchenWaitress" },
+    });
+  }
 }
 
 const KitchenOrder: Model<IKitchenOrderDocument> =
-  existingKitchenOrder ||
+  (mongoose.models.KitchenOrder as Model<IKitchenOrderDocument> | undefined) ||
   mongoose.model<IKitchenOrderDocument>("KitchenOrder", KitchenOrderSchema);
 
 export default KitchenOrder;

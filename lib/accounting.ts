@@ -1,4 +1,4 @@
-import AccountingPeriod from "@/models/AccountingPeriod";
+import { getActiveExercice, serializeExercice, updateActiveExerciceOpening } from "@/lib/exercice";
 import Supply from "@/models/Supply";
 import Expense from "@/models/Expense";
 import "@/models/Product";
@@ -61,18 +61,22 @@ export async function getAccountingOpening(): Promise<{
   openedAt: Date;
   note?: string;
 } | null> {
-  const extras = await AccountingPeriod.find().sort({ createdAt: 1 }).select("_id").lean();
-  if (extras.length > 1) {
-    await AccountingPeriod.deleteMany({ _id: { $in: extras.slice(1).map((row) => row._id) } });
-  }
-  return AccountingPeriod.findOne()
-    .sort({ createdAt: 1 })
-    .lean<{
-      _id: { toString(): string };
-      openingBalance: number;
-      openedAt: Date;
-      note?: string;
-    } | null>();
+  const exercice = await getActiveExercice();
+  return {
+    _id: exercice._id,
+    openingBalance: exercice.openingBalance,
+    openedAt: exercice.startedAt,
+    note: exercice.note,
+  };
+}
+
+export async function setAccountingOpening(input: {
+  openingBalance: number;
+  openedAt?: Date;
+  note?: string;
+}) {
+  const updated = await updateActiveExerciceOpening(input);
+  return serializeExercice(updated);
 }
 
 export async function buildAccountingSnapshot(window: {
@@ -82,6 +86,7 @@ export async function buildAccountingSnapshot(window: {
   label: string;
 }): Promise<IAccountingSnapshot> {
   const period = await getAccountingOpening();
+  const exercice = await getActiveExercice();
   const serializedPeriod = period
     ? {
         _id: String(period._id),
@@ -113,22 +118,26 @@ export async function buildAccountingSnapshot(window: {
   const openedAt = new Date(period.openedAt);
   const windowStart = openedAt.getTime() > window.from.getTime() ? openedAt : window.from;
   const expensePeriodFrom = startOfLocalDay(windowStart);
+  const exerciceFilter = { exercice: exercice._id };
 
   const supplySelect = { createdAt: 1, totalCost: 1, product: 1 };
   const expenseSelect = { date: 1, amount: 1, label: 1, category: 1 };
 
   const [suppliesBefore, expensesBefore, supplies, expenses] = await Promise.all([
-    Supply.find({ createdAt: { $gte: openedAt, $lt: windowStart } })
+    Supply.find({ ...exerciceFilter, createdAt: { $gte: openedAt, $lt: windowStart } })
       .select(supplySelect)
       .lean<Array<{ totalCost: number }>>(),
-    Expense.find({ date: { $gte: startOfLocalDay(openedAt), $lt: startOfLocalDay(windowStart) } })
+    Expense.find({
+      ...exerciceFilter,
+      date: { $gte: startOfLocalDay(openedAt), $lt: startOfLocalDay(windowStart) },
+    })
       .select("amount")
       .lean<Array<{ amount: number }>>(),
-    Supply.find({ createdAt: { $gte: windowStart, $lte: window.to } })
+    Supply.find({ ...exerciceFilter, createdAt: { $gte: windowStart, $lte: window.to } })
       .populate("product", "name")
       .select(supplySelect)
       .lean<Array<{ _id: { toString(): string }; createdAt: Date; totalCost: number; product?: unknown }>>(),
-    Expense.find({ date: { $gte: expensePeriodFrom, $lte: window.to } })
+    Expense.find({ ...exerciceFilter, date: { $gte: expensePeriodFrom, $lte: window.to } })
       .populate("category", "name")
       .select(expenseSelect)
       .lean<Array<{ _id: { toString(): string }; date: Date; amount: number; label: string; category?: unknown }>>(),

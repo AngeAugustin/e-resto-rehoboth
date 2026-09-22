@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { DIRECTION_ROLES, OPERATIONS_ROLES } from "@/lib/roles";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import KitchenOrder from "@/models/KitchenOrder";
 import Menu from "@/models/Menu";
 import Cook from "@/models/Cook";
@@ -11,8 +12,8 @@ import { resolveDefaultKitchenCookId } from "@/lib/kitchen-staff";
 import "@/models/KitchenPlate";
 import "@/models/User";
 
-async function loadPopulated(id: string) {
-  return KitchenOrder.findById(id)
+async function loadPopulated(id: string, exerciceId: Types.ObjectId) {
+  return KitchenOrder.findOne(withExercice(exerciceId, { _id: id }))
     .populate("cook", "firstName lastName photo")
     .populate("kitchenWaitress", "firstName lastName phone")
     .populate("plate", "number")
@@ -26,8 +27,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
-  const order = await loadPopulated(id);
+  const order = await loadPopulated(id, exerciceId);
   if (!order) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
   return NextResponse.json(order);
 }
@@ -37,10 +39,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
   const body = await req.json();
 
-  const order = await KitchenOrder.findById(id);
+  const order = await KitchenOrder.findOne(withExercice(exerciceId, { _id: id }));
   if (!order) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
 
   if (order.status !== "PENDING") {
@@ -81,7 +84,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     order.status = "COMPLETED";
     await order.save();
 
-    const fresh = await loadPopulated(id);
+    const fresh = await loadPopulated(id, exerciceId);
     return NextResponse.json(fresh);
   }
 
@@ -118,11 +121,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   order.cook = new Types.ObjectId(defaultCookId);
 
   if (plateId) {
-    const conflict = await KitchenOrder.findOne({
-      plate: plateId,
-      status: "PENDING",
-      _id: { $ne: id },
-    });
+    const conflict = await KitchenOrder.findOne(
+      withExercice(exerciceId, {
+        plate: plateId,
+        status: "PENDING",
+        _id: { $ne: id },
+      })
+    );
     if (conflict) {
       return NextResponse.json(
         { error: "Cette plaquette a déjà une commande en attente." },
@@ -155,7 +160,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   await order.save();
-  const fresh = await loadPopulated(id);
+  const fresh = await loadPopulated(id, exerciceId);
   if (!fresh) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
   return NextResponse.json(fresh);
 }
@@ -165,9 +170,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const { id } = await params;
 
-  const order = await KitchenOrder.findById(id);
+  const order = await KitchenOrder.findOne(withExercice(exerciceId, { _id: id }));
   if (!order) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
 
   if (order.status === "COMPLETED") {

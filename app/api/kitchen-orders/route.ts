@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import { OPERATIONS_ROLES } from "@/lib/roles";
 import { kitchenCashSessionFilter } from "@/lib/cash-session";
+import { getActiveExerciceId, withExercice } from "@/lib/exercice";
 import KitchenOrder from "@/models/KitchenOrder";
 import Menu from "@/models/Menu";
 import Cook from "@/models/Cook";
@@ -35,6 +36,8 @@ export async function GET(req: NextRequest) {
   const skip = (page - 1) * pageSize;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
+  const exerciceFilter = withExercice(exerciceId);
 
   const [statsAgg, orders] = await Promise.all([
     KitchenOrder.aggregate<{
@@ -43,6 +46,7 @@ export async function GET(req: NextRequest) {
       pendingOrders: number;
       completedOrders: number;
     }>([
+      { $match: exerciceFilter },
       {
         $group: {
           _id: null,
@@ -55,7 +59,7 @@ export async function GET(req: NextRequest) {
         },
       },
     ]),
-    KitchenOrder.find()
+    KitchenOrder.find(exerciceFilter)
       .populate("cook", "firstName lastName photo")
       .populate("kitchenWaitress", "firstName lastName phone")
       .populate("plate", "number")
@@ -87,6 +91,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   await connectDB();
+  const exerciceId = await getActiveExerciceId();
   const body = await req.json();
   const { kitchenWaitressId, plateId, items } = body as {
     kitchenWaitressId?: string;
@@ -94,7 +99,7 @@ export async function POST(req: NextRequest) {
     items?: Array<{ menuId: string; quantity: number }>;
   };
 
-  const latest = await CashSession.findOne(kitchenCashSessionFilter())
+  const latest = await CashSession.findOne(kitchenCashSessionFilter(exerciceId))
     .sort({ createdAt: -1 })
     .select("status")
     .lean<{ status: "OPEN" | "CLOSED" } | null>();
@@ -138,10 +143,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Cuisinière introuvable ou désactivée" }, { status: 400 });
   }
 
-  const pendingConflict = await KitchenOrder.findOne({
-    plate: plateId,
-    status: "PENDING",
-  });
+  const pendingConflict = await KitchenOrder.findOne(
+    withExercice(exerciceId, { plate: plateId, status: "PENDING" })
+  );
   if (pendingConflict) {
     return NextResponse.json(
       { error: "Cette plaquette a déjà une commande en attente. Clôturez-la ou choisissez une autre plaquette." },
@@ -176,6 +180,7 @@ export async function POST(req: NextRequest) {
     items: orderItems,
     totalAmount,
     status: "PENDING",
+    exercice: exerciceId,
     createdBy: session!.user.id,
   });
 

@@ -33,6 +33,10 @@ export function parseTableIdsFromRequestBody(body: {
   return null;
 }
 
+/**
+ * Filtre ventes PENDING qui utilisent l’une des tables.
+ * Les appelants doivent fusionner avec `withExercice(exerciceId, …)`.
+ */
 export function pendingSaleUsesAnyTableFilter(
   tableIds: string[],
   excludeSaleId?: string

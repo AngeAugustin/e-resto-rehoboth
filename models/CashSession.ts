@@ -4,6 +4,7 @@ export type CashSessionStatus = "OPEN" | "CLOSED";
 export type CashSessionKind = "BAR" | "KITCHEN";
 
 export interface ICashSessionDocument extends Document {
+  exercice: mongoose.Types.ObjectId;
   name: string;
   sessionDate: Date;
   openingFloat: number;
@@ -20,6 +21,12 @@ export interface ICashSessionDocument extends Document {
 
 const CashSessionSchema = new Schema<ICashSessionDocument>(
   {
+    exercice: {
+      type: Schema.Types.ObjectId,
+      ref: "Exercice",
+      required: [true, "L’exercice est requis"],
+      index: true,
+    },
     name: {
       type: String,
       required: [true, "Le nom de session est requis"],
@@ -66,10 +73,14 @@ const CashSessionSchema = new Schema<ICashSessionDocument>(
 
 CashSessionSchema.index({ status: 1, createdAt: -1 });
 CashSessionSchema.index({ kind: 1, status: 1, createdAt: -1 });
+CashSessionSchema.index({ exercice: 1, kind: 1, status: 1, createdAt: -1 });
 
 const existingModel = mongoose.models.CashSession as Model<ICashSessionDocument> | undefined;
 
-if (existingModel && !existingModel.schema.path("kind")) {
+if (
+  (existingModel && !existingModel.schema.path("kind")) ||
+  (existingModel && !existingModel.schema.path("exercice"))
+) {
   mongoose.deleteModel("CashSession");
 }
 
